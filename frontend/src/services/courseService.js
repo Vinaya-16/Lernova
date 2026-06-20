@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAllCourses } from '../../../backend/controllers/coursesController';
 
 // Use relative path when using proxy
 const API_URL = '/api'; // This will work with Vite proxy
@@ -85,5 +86,30 @@ export const courseService = {
       console.error('Error deleting course:', error.response?.data || error.message);
       throw error;
     }
-  }
+  },
+
+  updateCourseStatus: async (id, status) => {
+    const response = await api.put(
+      `/courses/updateCourseStatus/${id}`,
+      { status }
+    );
+
+    return response.data;
+  },
+
+  getAllCourses: async () => {
+    try {
+      const response = await api.get(
+        "/courses/allCourses"
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error fetching all courses:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };

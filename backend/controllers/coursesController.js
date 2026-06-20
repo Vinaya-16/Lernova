@@ -135,3 +135,50 @@ export const getCourses = async (req, res) => {
         });
     }
 };
+
+//Admin panel
+
+export const getAllCourses = async (req, res) => {
+    try {
+        const courses = await coursesModel.find();
+
+        res.status(200).json({
+            success: true,
+            course: courses,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+export const updateCourseStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+
+        const course = await coursesModel.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true }
+        );
+
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            course,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};

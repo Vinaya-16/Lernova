@@ -23,6 +23,11 @@ const instructorSchema = new mongoose.Schema(
       type: String,
       default: "instructor",
     },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    }
   },
   {
     timestamps: true,

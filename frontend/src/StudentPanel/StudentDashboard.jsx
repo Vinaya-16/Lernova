@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     LayoutDashboard,
     Compass,
@@ -167,15 +167,42 @@ function Dashboard({ goTo, openCourse }) {
 // ── Browse Courses ───────────────────────────────────────────────────────
 function BrowseCourses({ openCourse }) {
     const [query, setQuery] = useState("");
+    const [courses, setCourses] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Filter courses in real-time as the user types in the search box
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
+    const fetchCourses = async () => {
+        try {
+            setLoading(true);
+
+            const response = await courseService.getCourses();
+
+            setCourses(response.course || []);
+        } catch (error) {
+            console.error("Failed to fetch courses:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const filtered = courses.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
+
+    if (loading) {
+        return <p>Loading courses...</p>;
+    }
 
     return (
         <div className="space-y-6">
             {/* Search input with an icon positioned absolutely inside */}
             <div className="relative max-w-md">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+                <Search
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+                />
+
                 <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -187,19 +214,50 @@ function BrowseCourses({ openCourse }) {
             {/* Course cards grid — responsive 1/2/3 columns */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filtered.map((c) => (
-                    <Card key={c.id} className="p-0 overflow-hidden flex flex-col cursor-pointer hover:shadow-soft transition" >
-                        {/* Clicking the thumbnail opens the course detail view */}
-                        <img src={c.thumbnail} alt={c.title} className="w-full h-36 object-cover" onClick={() => openCourse(c)} />
+                    <Card
+                        key={c._id}
+                        className="p-0 overflow-hidden flex flex-col cursor-pointer hover:shadow-soft transition"
+                    >
+                        <img
+                            src={c.image || "/placeholder-course.jpg"}
+                            alt={c.title}
+                            className="w-full h-36 object-cover"
+                            onClick={() => openCourse(c)}
+                        />
+
                         <div className="p-4 flex-1 flex flex-col">
-                            <Badge tone="primary">{c.category}</Badge>
-                            <p className="text-body-lg text-text-primary mt-2 line-clamp-2">{c.title}</p>
-                            <p className="text-caption text-text-secondary mt-1">{c.instructor}</p>
+
+                            <Badge tone="primary">
+                                {c.category}
+                            </Badge>
+
+                            <p className="text-body-lg text-text-primary mt-2 line-clamp-2">
+                                {c.title}
+                            </p>
+
+                            <p className="text-caption text-text-secondary mt-1">
+                                {c.instructorName?.name || "Instructor"}
+                            </p>
+
                             <div className="flex items-center gap-1 mt-2 text-caption text-text-secondary">
-                                <Star size={14} className="text-warning fill-warning" /> {c.rating} ({c.reviews})
+                                <Star
+                                    size={14}
+                                    className="text-warning fill-warning"
+                                />
+                                {c.ratings || 0}
                             </div>
+
                             <div className="flex items-center justify-between mt-4">
-                                <span className="text-h3 text-text-primary">${c.price}</span>
-                                <Button className="h-9 px-4" onClick={() => openCourse(c)}>View</Button>
+                                <span className="text-h3 text-text-primary">
+                                    ${c.price || 0}
+                                </span>
+
+                                <Button
+                                    className="h-9 px-4"
+                                    onClick={() => openCourse(c)}
+                                >
+                                    View
+                                </Button>
                             </div>
                         </div>
                     </Card>
@@ -208,15 +266,13 @@ function BrowseCourses({ openCourse }) {
                 {/* Empty state shown when search returns no results */}
                 {filtered.length === 0 && (
                     <div className="sm:col-span-2 lg:col-span-3 flex flex-col items-center text-center py-12">
-                        <Illustration
-                            src={browseCoursesImg}
-                            webp={browseCoursesWebp}
-                            alt="Illustration representing course exploration with no results"
-                            size="discovery"
-                            className="mb-4"
-                        />
-                        <p className="text-h3 text-text-primary">No courses found</p>
-                        <p className="text-body text-text-secondary mt-1 max-w-sm">Try a different search term.</p>
+                        <p className="text-h3 text-text-primary">
+                            No courses found
+                        </p>
+
+                        <p className="text-body text-text-secondary mt-1 max-w-sm">
+                            Try a different search term.
+                        </p>
                     </div>
                 )}
             </div>
