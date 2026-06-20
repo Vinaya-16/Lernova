@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import dns from "dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
+import courseRoutes from "./routes/coursesRoute.js";
 
 // Set DNS resolution order to ipv4first and set public DNS servers to avoid querySrv ECONNREFUSED on Windows
 dns.setDefaultResultOrder("ipv4first");
@@ -23,13 +24,14 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: "*", // Adjust as necessary for production security
+  origin: "*",
   credentials: true
 }));
 app.use(express.json());
 
 // API Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/courses", courseRoutes);
 
 // Root route
 app.get("/", (req, res) => {

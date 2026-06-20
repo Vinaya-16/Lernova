@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { courseService } from "../services/courseService.js"
 import {
     LayoutDashboard,
     PlusCircle,
@@ -27,6 +29,7 @@ import {
     announcements as mockAnnouncements,
     reviews,
 } from "../mockData/lmsData";
+import { use } from "react";
 
 const navItems = [
     { id: "dashboard", label: "Instructor Dashboard", icon: LayoutDashboard },
@@ -92,23 +95,147 @@ function CreateCourse({ onCreated }) {
     const [category, setCategory] = useState("Web Development");
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const submit = (e) => {
+    const [image, setImage] = useState("");
+    const [language, setLanguage] = useState("English");
+    const [complexity, setComplexity] = useState("Beginner");
+    const [duration, setDuration] = useState("8 weeks");
+
+    const submit = async (e) => {
         e.preventDefault();
-        onCreated();
+        setLoading(true);
+
+        try {
+
+            const categoryMap = [
+                "Web Development",
+                "Mobile Development",
+                "Programming",
+                "Data Science",
+                "Artificial Intelligence",
+                "Cyber Security",
+                "Cloud Computing",
+                "DevOps",
+                "UI/UX Design",
+                "Graphic Design",
+                "Digital Marketing",
+                "Business",
+                "Finance",
+                "Photography",
+                "Personal Development"
+            ]
+
+            const courseData = {
+                title,
+                category: categoryMap[category] || category,
+                description,
+                price: parseFloat(price) || 0,
+                image,
+                language,
+                complexity,
+                duration,
+            };
+
+            const response = await courseService.createCourse(courseData);
+
+            console.log("Course created: ", response);
+
+            setTitle("");
+            setCategory("Web Development");
+            setDescription("");
+            setPrice("");
+            setImage("");
+            setLanguage("English");
+            setComplexity("Beginner");
+            setDuration("8 weeks");
+
+            if (onCreated) {
+                onCreated(response.course);
+            }
+
+            alert("Course created successfully ! Waiting for approval");
+        }
+        catch (error) {
+            console.error("failed to create course: ", error);
+        }
+        finally {
+            setLoading(false);
+        }
     };
 
     return (
         <Card className="max-w-2xl">
             <form onSubmit={submit}>
-                <Input label="Course Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Advanced React Patterns" required />
-                <Input label="Category" as="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <Input
+                    label="Course Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Advanced React Patterns"
+                    required
+                />
+                <Input
+                    label="Category"
+                    as="select"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                >
                     {["Web Development", "Design", "Data Science", "Marketing", "Photography", "Business"].map((c) => (
                         <option key={c} value={c}>{c}</option>
                     ))}
                 </Input>
-                <Input label="Description" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will students learn?" />
-                <Input label="Price (USD)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="49" />
+                <Input
+                    label="Description"
+                    as="textarea"
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What will students learn?"
+                />
+                <Input
+                    label="Price (USD)"
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="49"
+                />
+
+                <Input
+                    label="Course Thumbnail URL (Optional)"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                    placeholder="https://example.com/course-image.jpg"
+                />
+
+                <Input
+                    label="Language"
+                    as="select"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                >
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="Marathi">Marathi</option>
+                </Input>
+
+                <Input
+                    label="Complexity"
+                    as="select"
+                    value={complexity}
+                    onChange={(e) => setComplexity(e.target.value)}
+                >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                </Input>
+
+                <Input
+                    label="Duration"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="e.g. 8 weeks"
+                />
+
                 <Button type="submit" full>Create Course (Draft)</Button>
             </form>
         </Card>
@@ -117,7 +244,44 @@ function CreateCourse({ onCreated }) {
 
 // ── Curriculum Builder + Uploads (course editor) ─────────────────────────
 function CourseEditor({ course, onBack }) {
-    const [tab, setTab] = useState("curriculum");
+    const [tab, setTab] = useState("details");
+
+    const [title, setTitle] = useState(course.title || "");
+    const [category, setCategory] = useState(course.category || "");
+    const [description, setDescription] = useState(course.description || "");
+    const [price, setPrice] = useState(course.price || 0);
+    const [loading, setLoading] = useState(false);
+
+    const [image, setImage] = useState(course.image || "");
+    const [language, setLanguage] = useState(course.language || "English");
+    const [complexity, setComplexity] = useState(course.complexity || "Beginner");
+    const [duration, setDuration] = useState(course.duration || "");
+
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+
+            await courseService.updateCourse(course._id, {
+                title,
+                category,
+                description,
+                price,
+                image,
+                language,
+                complexity,
+                duration,
+            });
+
+            alert("Course updated successfully");
+            onBack();
+        } catch (error) {
+            console.error("Update failed:", error);
+            alert("Failed to update course");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-4">
             <button onClick={onBack} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
@@ -125,9 +289,10 @@ function CourseEditor({ course, onBack }) {
             </button>
             <Card>
                 <h2 className="text-h3 text-text-primary mb-1">{course.title}</h2>
-                <p className="text-caption text-text-secondary mb-4">{course.category} · {course.level}</p>
+                <p className="text-caption text-text-secondary mb-4">{course.category} · {course.complexity}</p>
                 <div className="flex gap-2 border-b border-border-light pb-2 mb-5 flex-wrap">
                     {[
+                        { id: "details", label: "Course Details", icon: Pencil },
                         { id: "curriculum", label: "Curriculum Builder", icon: Layers },
                         { id: "videos", label: "Upload Videos", icon: FileVideo },
                         { id: "materials", label: "Study Materials", icon: FileText },
@@ -142,6 +307,134 @@ function CourseEditor({ course, onBack }) {
                         </button>
                     ))}
                 </div>
+
+                {tab === "details" && (
+                    <div className="space-y-4">
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Course Title
+                            </label>
+
+                            <input
+                                className="w-full border rounded-lg p-2"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Category
+                            </label>
+
+                            <select
+                                className="w-full border rounded-lg p-2"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                            >
+                                <option value="Frontend">Frontend</option>
+                                <option value="Backend">Backend</option>
+                                <option value="Software">Software</option>
+                                <option value="IT">IT</option>
+                                <option value="Design">Design</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Description
+                            </label>
+
+                            <textarea
+                                rows={5}
+                                className="w-full border rounded-lg p-2"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Price
+                            </label>
+
+                            <input
+                                type="number"
+                                className="w-full border rounded-lg p-2"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Course Thumbnail URL
+                            </label>
+
+                            <input
+                                type="text"
+                                className="w-full border rounded-lg p-2"
+                                value={image}
+                                onChange={(e) => setImage(e.target.value)}
+                                placeholder="https://example.com/image.jpg"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Language
+                            </label>
+
+                            <select
+                                className="w-full border rounded-lg p-2"
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                            >
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Marathi">Marathi</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Complexity
+                            </label>
+
+                            <select
+                                className="w-full border rounded-lg p-2"
+                                value={complexity}
+                                onChange={(e) => setComplexity(e.target.value)}
+                            >
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">
+                                Duration
+                            </label>
+
+                            <input
+                                type="text"
+                                className="w-full border rounded-lg p-2"
+                                value={duration}
+                                onChange={(e) => setDuration(e.target.value)}
+                                placeholder="8 weeks"
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleSave}
+                            disabled={loading}
+                        >
+                            {loading ? "Saving..." : "Save Changes"}
+                        </Button>
+                    </div>
+                )}
 
                 {tab === "curriculum" && (
                     <div className="space-y-3">
@@ -192,22 +485,121 @@ function CourseEditor({ course, onBack }) {
 
 // ── Manage Courses ───────────────────────────────────────────────────────
 function ManageCourses() {
+    const [courses, setCourses] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
-    if (editing) return <CourseEditor course={editing} onBack={() => setEditing(null)} />;
+
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
+    const fetchCourses = async () => {
+        try {
+            setLoading(true);
+
+            const response = await courseService.getMyCourses();
+
+            setCourses(response.course || []);
+        }
+        catch (error) {
+            console.error("Failed to fetch courses: ", error);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete this couse?"))
+            return;
+
+        try {
+            await courseService.deleteCourse(id);
+
+            setCourses((prev) =>
+                prev.filter((course) => course._id !== id)
+            );
+
+            alert("Course Deleted successfully..")
+        }
+        catch (error) {
+            console.error("Delete course failed: ", error);
+        }
+    };
+
+    if (editing) {
+        return (
+            <CourseEditor
+                course={editing}
+                onBack={() => {
+                    setEditing(null);
+                    fetchCourses();
+                }}
+            />
+        );
+    }
+
+    if (loading) {
+        return <p>Loading courses.......</p>;
+    }
 
     return (
         <div className="space-y-4">
-            {myCourses.map((c) => (
-                <Card key={c.id} className="flex items-center gap-4 flex-wrap">
-                    <img src={c.thumbnail} alt={c.title} className="w-20 h-16 object-cover rounded-xl" />
-                    <div className="flex-1 min-w-[180px]">
-                        <p className="text-body-lg text-text-primary">{c.title}</p>
-                        <p className="text-caption text-text-secondary">{c.category} · {c.students.toLocaleString()} students</p>
-                    </div>
-                    <Badge tone="success">Published</Badge>
-                    <Button variant="outline" className="h-9 px-4" onClick={() => setEditing(c)}>Edit</Button>
+
+            {courses.length === 0 ? (
+                <Card>
+                    <p>No courses created yet</p>
                 </Card>
-            ))}
+            ) : (
+                courses.map((c) => (
+                    <Card
+                        key={c._id}
+                        className="flex items-center gap-4 flex-wrap"
+                    >
+                        <img
+                            src={
+                                c.image || ""
+                            }
+                            alt={c.title}
+                            className="w-20 h-16 object-cover rounded-xl"
+                        />
+                        <div className="flex-1 min-w-[180px]">
+                            <p className="text-body-lg text-text-primary">
+                                {c.title}
+                            </p>
+                            <p className="text-caption text-text-secondary">
+                                {c.category} · {c.studentsEnrolled || 0} students
+                            </p>
+                        </div>
+                        <Badge
+                            tone={
+                                c.status === "approved"
+                                    ? "success"
+                                    : c.status === "rejected"
+                                        ? "danger"
+                                        : "warning"
+                            }
+                        >
+                            {c.status}
+                        </Badge>
+
+                        <Button
+                            variant="outline"
+                            className="h-9 px-4"
+                            onClick={() => setEditing(c)}
+                        >
+                            Edit
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="h-9 px-4"
+                            onClick={() => handleDelete(c._id)}
+                        >
+                            Delete
+                        </Button>
+                    </Card>
+                ))
+            )}
         </div>
     );
 }
