@@ -40,6 +40,7 @@ import {
     learningStreak,
 } from "../mockData/lmsData";
 
+// Sidebar nav items — each has an id (used for routing), a label, and an icon
 const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "browse", label: "Browse Courses", icon: Compass },
@@ -52,17 +53,23 @@ const navItems = [
     { id: "discussions", label: "Discussion Forum", icon: MessageSquare },
 ];
 
+// Filter the full course list to only the ones the student has enrolled in
 const enrolledCourses = courses.filter((c) => enrolledCourseIds.includes(c.id));
 
 // ── Dashboard ────────────────────────────────────────────────────────────
 function Dashboard({ goTo, openCourse }) {
+    // Average progress across all enrolled courses, rounded to a whole number
     const overallProgress = Math.round(
         enrolledCourses.reduce((sum, c) => sum + c.progress, 0) / enrolledCourses.length
     );
+
+    // Pick the first in-progress course to show in the "Continue Learning" section
+    // Falls back to the first enrolled course if none are partially complete
     const continueCourse = enrolledCourses.find((c) => c.progress > 0 && c.progress < 100) || enrolledCourses[0];
 
     return (
         <div className="space-y-6">
+            {/* Hero banner with CTA to browse courses */}
             <Card className="bg-primary-gradient text-white flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden relative">
                 <div className="md:flex-1">
                     <h2 className="text-h2 text-white">Unlock 1,000+ Premium Courses Today</h2>
@@ -73,6 +80,7 @@ function Dashboard({ goTo, openCourse }) {
                         Browse Courses
                     </Button>
                 </div>
+                {/* Decorative illustration — hidden on mobile */}
                 <Illustration
                     src={studentDashboardImg}
                     webp={studentDashboardWebp}
@@ -84,6 +92,7 @@ function Dashboard({ goTo, openCourse }) {
                 />
             </Card>
 
+            {/* 4 summary stat cards: enrolled count, progress %, streak, certificates */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard icon={BookOpen} label="Courses Enrolled" value={enrolledCourses.length} accent="primary" />
                 <StatCard icon={CheckCircle2} label="Overall Progress" value={`${overallProgress}%`} accent="success" />
@@ -91,12 +100,15 @@ function Dashboard({ goTo, openCourse }) {
                 <StatCard icon={Award} label="Certificates Earned" value={certificates.length} accent="secondary" />
             </div>
 
+            {/* Main content row: Continue Learning + Deadlines (2/3) | Recent Activity (1/3) */}
             <div className="grid lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-h3 text-text-primary">Continue Learning</h3>
                         <button onClick={() => goTo("enrolled")} className="text-caption font-semibold text-primary">View All</button>
                     </div>
+
+                    {/* Resume card for the in-progress course */}
                     {continueCourse && (
                         <div className="flex flex-col sm:flex-row gap-4 items-center bg-app rounded-2xl p-4">
                             <img src={continueCourse.thumbnail} alt={continueCourse.title} className="w-full sm:w-40 h-28 object-cover rounded-xl" />
@@ -114,6 +126,7 @@ function Dashboard({ goTo, openCourse }) {
                         </div>
                     )}
 
+                    {/* Upcoming assignment deadlines — shows the next 2 */}
                     <div className="mt-6 space-y-3">
                         <h4 className="text-body-lg text-text-primary">Upcoming Deadlines</h4>
                         {assignments.slice(0, 2).map((a) => (
@@ -131,6 +144,7 @@ function Dashboard({ goTo, openCourse }) {
                     </div>
                 </Card>
 
+                {/* Recent activity feed — shows last 4 notifications as a simple list */}
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-4">Recent Activity</h3>
                     <ul className="space-y-4">
@@ -153,10 +167,13 @@ function Dashboard({ goTo, openCourse }) {
 // ── Browse Courses ───────────────────────────────────────────────────────
 function BrowseCourses({ openCourse }) {
     const [query, setQuery] = useState("");
+
+    // Filter courses in real-time as the user types in the search box
     const filtered = courses.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
 
     return (
         <div className="space-y-6">
+            {/* Search input with an icon positioned absolutely inside */}
             <div className="relative max-w-md">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
                 <input
@@ -167,9 +184,11 @@ function BrowseCourses({ openCourse }) {
                 />
             </div>
 
+            {/* Course cards grid — responsive 1/2/3 columns */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filtered.map((c) => (
                     <Card key={c.id} className="p-0 overflow-hidden flex flex-col cursor-pointer hover:shadow-soft transition" >
+                        {/* Clicking the thumbnail opens the course detail view */}
                         <img src={c.thumbnail} alt={c.title} className="w-full h-36 object-cover" onClick={() => openCourse(c)} />
                         <div className="p-4 flex-1 flex flex-col">
                             <Badge tone="primary">{c.category}</Badge>
@@ -185,6 +204,8 @@ function BrowseCourses({ openCourse }) {
                         </div>
                     </Card>
                 ))}
+
+                {/* Empty state shown when search returns no results */}
                 {filtered.length === 0 && (
                     <div className="sm:col-span-2 lg:col-span-3 flex flex-col items-center text-center py-12">
                         <Illustration
@@ -205,12 +226,17 @@ function BrowseCourses({ openCourse }) {
 
 // ── Course Details ───────────────────────────────────────────────────────
 function CourseDetails({ course, onBack, onPlay }) {
+    // Check if the student is already enrolled to decide which CTA button to show
     const isEnrolled = enrolledCourseIds.includes(course.id);
+
     return (
         <div className="space-y-6">
+            {/* Back button to return to the previous view */}
             <button onClick={onBack} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
                 <ChevronLeft size={16} /> Back
             </button>
+
+            {/* Course hero card: thumbnail, title, metadata, and enroll/continue CTA */}
             <Card className="p-0 overflow-hidden">
                 <img src={course.thumbnail} alt={course.title} className="w-full h-56 object-cover" />
                 <div className="p-6">
@@ -225,6 +251,7 @@ function CourseDetails({ course, onBack, onPlay }) {
                         <Badge tone="info">{course.level}</Badge>
                     </div>
                     <div className="mt-6 flex items-center gap-3">
+                        {/* Show "Continue Learning" if enrolled, otherwise show "Enroll Now" with price */}
                         {isEnrolled ? (
                             <Button onClick={() => onPlay(course)}><PlayCircle size={18} /> Continue Learning</Button>
                         ) : (
@@ -235,6 +262,7 @@ function CourseDetails({ course, onBack, onPlay }) {
                 </div>
             </Card>
 
+            {/* Course curriculum: list of modules and their lessons */}
             <Card>
                 <h3 className="text-h3 text-text-primary mb-4">Course Curriculum</h3>
                 <div className="space-y-3">
@@ -245,6 +273,7 @@ function CourseDetails({ course, onBack, onPlay }) {
                                 {m.lessons.map((l) => (
                                     <li key={l.id} className="flex items-center justify-between text-body text-text-secondary">
                                         <span className="flex items-center gap-2">
+                                            {/* Icon turns green when the lesson is already completed */}
                                             <PlayCircle size={16} className={l.completed ? "text-success" : "text-text-secondary"} />
                                             {l.title}
                                         </span>
@@ -254,6 +283,7 @@ function CourseDetails({ course, onBack, onPlay }) {
                             </ul>
                         </div>
                     ))}
+                    {/* Fallback text when a course has no modules yet */}
                     {(!course.modules || course.modules.length === 0) && (
                         <p className="text-caption text-text-secondary">Curriculum will be available once published.</p>
                     )}
@@ -269,6 +299,7 @@ function EnrolledCourses({ openCourse, onPlay }) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {enrolledCourses.map((c) => (
                 <Card key={c.id} className="p-0 overflow-hidden flex flex-col">
+                    {/* Thumbnail opens the course detail view on click */}
                     <img src={c.thumbnail} alt={c.title} className="w-full h-36 object-cover cursor-pointer" onClick={() => openCourse(c)} />
                     <div className="p-4 flex-1 flex flex-col">
                         <p className="text-body-lg text-text-primary line-clamp-2">{c.title}</p>
@@ -276,6 +307,7 @@ function EnrolledCourses({ openCourse, onPlay }) {
                         <ProgressBar value={c.progress} />
                         <div className="flex items-center justify-between mt-3">
                             <span className="text-caption text-text-secondary">{c.progress}% complete</span>
+                            {/* Button label switches between "Resume" and "Start" based on progress */}
                             <Button className="h-9 px-4" onClick={() => onPlay(c)}>
                                 <PlayCircle size={16} /> {c.progress > 0 ? "Resume" : "Start"}
                             </Button>
@@ -289,17 +321,26 @@ function EnrolledCourses({ openCourse, onPlay }) {
 
 // ── Course Player ────────────────────────────────────────────────────────
 function CoursePlayer({ course, onBack }) {
+    // Tracks which tab is active in the bottom panel: notes, resources, or discussion
     const [tab, setTab] = useState("notes");
+
+    // Flatten all lessons from every module into a single array for easy navigation
     const allLessons = (course.modules || []).flatMap((m) => m.lessons);
+
+    // The currently playing lesson — defaults to the first lesson of the course
     const [activeLesson, setActiveLesson] = useState(allLessons[0]);
 
     return (
         <div className="space-y-4">
+            {/* Back button returns to the course detail or previous view */}
             <button onClick={onBack} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
                 <ChevronLeft size={16} /> Back to course
             </button>
+
+            {/* Two-column layout: video + tabs (2/3) | curriculum sidebar (1/3) */}
             <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-4">
+                    {/* Video player placeholder and lesson title */}
                     <Card className="p-0 overflow-hidden">
                         <div className="aspect-video bg-gray-900 flex items-center justify-center text-white">
                             <PlayCircle size={56} className="opacity-80" />
@@ -310,6 +351,7 @@ function CoursePlayer({ course, onBack }) {
                         </div>
                     </Card>
 
+                    {/* Tabbed panel below the video: Notes | Resources | Discussion */}
                     <Card>
                         <div className="flex gap-2 border-b border-border-light pb-2 mb-4">
                             {[
@@ -327,26 +369,35 @@ function CoursePlayer({ course, onBack }) {
                                 </button>
                             ))}
                         </div>
+
+                        {/* Notes tab: free-text textarea for the student to jot things down */}
                         {tab === "notes" && (
                             <Input as="textarea" rows={5} placeholder="Jot down notes for this lesson..." />
                         )}
+
+                        {/* Resources tab: downloadable files attached to the lesson */}
                         {tab === "resources" && (
                             <ul className="space-y-2">
                                 <li className="flex items-center gap-2 text-body text-text-secondary"><FileText size={16} /> Lesson slides.pdf</li>
                                 <li className="flex items-center gap-2 text-body text-text-secondary"><FileText size={16} /> Starter files.zip</li>
                             </ul>
                         )}
+
+                        {/* Discussion tab: empty state since no messages exist yet */}
                         {tab === "discussion" && (
                             <EmptyState icon={MessageSquare} title="No discussion yet" sub="Be the first to ask a question about this lesson." />
                         )}
                     </Card>
                 </div>
 
+                {/* Curriculum sidebar: overall progress bar + clickable lesson list */}
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-2">Curriculum</h3>
                     <p className="text-caption text-text-secondary mb-4">Lesson progress tracker</p>
                     <ProgressBar value={course.progress} />
                     <p className="text-caption text-text-secondary mt-2 mb-4">{course.progress}% complete</p>
+
+                    {/* Scrollable list of all modules and their lessons */}
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                         {(course.modules || []).map((m) => (
                             <div key={m.id}>
@@ -354,12 +405,14 @@ function CoursePlayer({ course, onBack }) {
                                 <ul className="space-y-1">
                                     {m.lessons.map((l) => (
                                         <li key={l.id}>
+                                            {/* Clicking a lesson sets it as the active (playing) lesson */}
                                             <button
                                                 onClick={() => setActiveLesson(l)}
                                                 className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-body ${activeLesson?.id === l.id ? "bg-active-bg text-primary" : "hover:bg-app text-text-primary"
                                                     }`}
                                             >
                                                 <span className="flex items-center gap-2">
+                                                    {/* Green checkmark for completed lessons, play icon for the rest */}
                                                     {l.completed ? <CheckCircle2 size={15} className="text-success" /> : <PlayCircle size={15} />}
                                                     {l.title}
                                                 </span>
@@ -379,8 +432,10 @@ function CoursePlayer({ course, onBack }) {
 
 // ── Assignments ───────────────────────────────────────────────────────────
 function Assignments() {
+    // Maps assignment status to a badge color tone
     const toneFor = { Pending: "warning", Submitted: "info", Graded: "success" };
 
+    // Show an empty state illustration if there are no assignments at all
     if (assignments.length === 0) {
         return (
             <div className="flex flex-col items-center text-center py-12">
@@ -401,6 +456,7 @@ function Assignments() {
         <div className="space-y-4">
             {assignments.map((a) => (
                 <Card key={a.id} className="flex items-center justify-between flex-wrap gap-3">
+                    {/* Left side: icon + assignment title and course name + due date */}
                     <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center"><ClipboardList size={20} /></div>
                         <div>
@@ -408,6 +464,7 @@ function Assignments() {
                             <p className="text-caption text-text-secondary">{a.course} · Due {a.dueDate}</p>
                         </div>
                     </div>
+                    {/* Right side: optional grade badge, status badge, and submit button for pending items */}
                     <div className="flex items-center gap-3">
                         {a.grade && <Badge tone="success">Grade: {a.grade}</Badge>}
                         <Badge tone={toneFor[a.status]}>{a.status}</Badge>
@@ -427,14 +484,17 @@ function Quizzes() {
                 <Card key={q.id}>
                     <div className="flex items-center justify-between mb-3">
                         <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center"><HelpCircle size={20} /></div>
+                        {/* Badge is green for completed quizzes, yellow for pending */}
                         <Badge tone={q.status === "Completed" ? "success" : "warning"}>{q.status}</Badge>
                     </div>
                     <p className="text-body-lg text-text-primary">{q.title}</p>
                     <p className="text-caption text-text-secondary mb-3">{q.course}</p>
                     <div className="flex items-center justify-between text-caption text-text-secondary">
                         <span>{q.questions} questions · {q.duration}</span>
+                        {/* Score is only shown once the quiz is completed */}
                         {q.score && <span className="font-semibold text-success">{q.score}</span>}
                     </div>
+                    {/* "Start Quiz" button only appears for quizzes not yet attempted */}
                     {q.status === "Pending" && <Button className="mt-4 h-9 px-4" full>Start Quiz</Button>}
                 </Card>
             ))}
@@ -446,6 +506,7 @@ function Quizzes() {
 function Certificates() {
     return (
         <div className="space-y-6">
+            {/* Hero banner celebrating the student's achievements */}
             <Card className="bg-primary-gradient text-white flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden">
                 <div className="sm:flex-1">
                     <h2 className="text-h2 text-white">Your Achievements</h2>
@@ -453,6 +514,7 @@ function Certificates() {
                         Every completed course adds a verified credential to your profile. Keep learning to unlock more.
                     </p>
                 </div>
+                {/* Decorative illustration — hidden on mobile */}
                 <Illustration
                     src={certificatesImg}
                     webp={certificatesWebp}
@@ -464,6 +526,7 @@ function Certificates() {
                 />
             </Card>
 
+            {/* Empty state if no certificates have been earned yet */}
             {certificates.length === 0 ? (
                 <div className="flex flex-col items-center text-center py-12">
                     <Illustration
@@ -477,6 +540,7 @@ function Certificates() {
                     <p className="text-body text-text-secondary mt-1 max-w-sm">Complete a course to earn your first certificate.</p>
                 </div>
             ) : (
+                /* Certificate cards grid — each card has a download button */
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {certificates.map((c) => (
                         <Card key={c.id} className="text-center transition-transform duration-300 hover:-translate-y-1">
@@ -500,7 +564,9 @@ function Notifications() {
     return (
         <div className="space-y-3 max-w-2xl">
             {mockNotifications.map((n) => (
+                // Unread notifications get a highlighted border to stand out
                 <Card key={n.id} className={`flex items-start gap-3 ${!n.read ? "border-primary/30" : ""}`}>
+                    {/* Dot indicator: filled primary color for unread, muted for read */}
                     <div className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 ${n.read ? "bg-border-light" : "bg-primary"}`} />
                     <div className="flex-1">
                         <p className="text-body-lg text-text-primary">{n.title}</p>
@@ -515,9 +581,12 @@ function Notifications() {
 
 // ── Course Reviews ────────────────────────────────────────────────────────
 function CourseReviews() {
+    // Tracks the student's selected star rating for the "Leave a Review" form
     const [rating, setRating] = useState(5);
+
     return (
         <div className="grid lg:grid-cols-3 gap-6">
+            {/* Left column: existing reviews list */}
             <div className="lg:col-span-2 space-y-4">
                 {reviews.map((r) => (
                     <Card key={r.id}>
@@ -529,6 +598,7 @@ function CourseReviews() {
                                     <p className="text-caption text-text-secondary">{r.course}</p>
                                 </div>
                             </div>
+                            {/* Star rating display — filled stars up to the reviewer's rating */}
                             <div className="flex items-center gap-0.5">
                                 {Array.from({ length: 5 }).map((_, i) => (
                                     <Star key={i} size={14} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />
@@ -539,8 +609,11 @@ function CourseReviews() {
                     </Card>
                 ))}
             </div>
+
+            {/* Right column: form for the student to submit their own review */}
             <Card>
                 <h3 className="text-h3 text-text-primary mb-3">Leave a Review</h3>
+                {/* Interactive star picker — clicking a star sets the rating to that value */}
                 <div className="flex items-center gap-1 mb-4">
                     {Array.from({ length: 5 }).map((_, i) => (
                         <button key={i} onClick={() => setRating(i + 1)}>
@@ -561,6 +634,7 @@ function DiscussionForum() {
         <div className="space-y-4 max-w-3xl">
             {discussions.map((d) => (
                 <Card key={d.id} className="flex items-center justify-between gap-4 flex-wrap">
+                    {/* Left: author avatar + thread title and course name */}
                     <div className="flex items-center gap-3">
                         <Avatar name={d.author} size={36} />
                         <div>
@@ -568,6 +642,7 @@ function DiscussionForum() {
                             <p className="text-caption text-text-secondary">{d.course} · by {d.author}</p>
                         </div>
                     </div>
+                    {/* Right: reply count and last activity timestamp */}
                     <div className="text-right">
                         <p className="text-caption text-text-secondary">{d.replies} replies</p>
                         <p className="text-caption text-text-secondary">{d.lastActivity}</p>
@@ -578,23 +653,37 @@ function DiscussionForum() {
     );
 }
 
-// ── Root ──────────────────────────────────────────────────────────────────
+// ── Root Component ────────────────────────────────────────────────────────
+// Top-level component that owns all navigation state and decides which
+// page/view to render inside the DashboardShell layout.
 export default function StudentDashboard() {
+    // Tracks which sidebar nav item is currently active (e.g. "dashboard", "browse")
     const [active, setActive] = useState("dashboard");
+
+    // When non-null, renders the CourseDetails view for the selected course
     const [selectedCourse, setSelectedCourse] = useState(null);
+
+    // When non-null, renders the CoursePlayer view for the course being watched
     const [playingCourse, setPlayingCourse] = useState(null);
 
+    // Open a course detail page and clear any active player
     const openCourse = (course) => {
         setSelectedCourse(course);
         setPlayingCourse(null);
     };
+
+    // Start playing a course (opens the player view)
     const playCourse = (course) => setPlayingCourse(course);
+
+    // Navigate to a top-level page, clearing any course detail or player state
     const goTo = (id) => {
         setSelectedCourse(null);
         setPlayingCourse(null);
         setActive(id);
     };
 
+    // Decide which component to render based on current state:
+    // Player > Course Detail > Named Page (from nav)
     const renderPage = () => {
         if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} />;
         if (selectedCourse) return <CourseDetails course={selectedCourse} onBack={() => setSelectedCourse(null)} onPlay={playCourse} />;
@@ -621,6 +710,7 @@ export default function StudentDashboard() {
             onNavigate={goTo}
             userName="Student"
         >
+            {/* Only show the page header when not in a course detail or player view */}
             {!selectedCourse && !playingCourse && active !== "courseDetails" && (
                 <PageHeader title={navItems.find((n) => n.id === active)?.label || "Dashboard"} />
             )}
