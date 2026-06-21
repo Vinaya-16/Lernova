@@ -33,7 +33,6 @@ import {
     students,
     assignments,
     quizzes,
-    announcements as mockAnnouncements,
     reviews,
 } from "../mockData/lmsData";
 
@@ -54,6 +53,25 @@ const myCourses = allCourses.slice(0, 4);
 function Dashboard() {
     const totalStudents = myCourses.reduce((sum, c) => sum + c.students, 0);
     const avgCompletion = Math.round(myCourses.reduce((sum, c) => sum + c.progress, 0) / myCourses.length);
+
+    // Fetch real announcements for the overview card
+    const [recentAnnouncements, setRecentAnnouncements] = useState([]);
+    const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchRecent = async () => {
+            try {
+                const res = await announcementService.getAnnouncements();
+                const list = res?.announcements || [];
+                setRecentAnnouncements(list.slice(0, 4));
+            } catch (err) {
+                console.error("Failed to fetch recent announcements:", err);
+            } finally {
+                setAnnouncementsLoading(false);
+            }
+        };
+        fetchRecent();
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -81,14 +99,22 @@ function Dashboard() {
                 </Card>
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-4">Recent Announcements</h3>
-                    <ul className="space-y-4">
-                        {mockAnnouncements.map((a) => (
-                            <li key={a.id}>
-                                <p className="text-body text-text-primary">{a.title}</p>
-                                <p className="text-caption text-text-secondary">{a.course} · {a.date}</p>
-                            </li>
-                        ))}
-                    </ul>
+                    {announcementsLoading ? (
+                        <p className="text-caption text-text-secondary">Loading...</p>
+                    ) : recentAnnouncements.length === 0 ? (
+                        <p className="text-caption text-text-secondary">No announcements yet.</p>
+                    ) : (
+                        <ul className="space-y-4">
+                            {recentAnnouncements.map((a) => (
+                                <li key={a._id}>
+                                    <p className="text-body text-text-primary">{a.title}</p>
+                                    <p className="text-caption text-text-secondary">
+                                        {a.course?.title || "General"} · {new Date(a.createdAt).toLocaleDateString()}
+                                    </p>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </Card>
             </div>
         </div>

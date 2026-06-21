@@ -19,6 +19,7 @@ import {
     StickyNote,
     Paperclip,
     X,
+    Megaphone,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import Illustration from "../components/Illustration";
@@ -28,6 +29,7 @@ import studentDashboardWebp from "../assets/illustrations/student-dashboard.webp
 import certificatesImg from "../assets/illustrations/certificates.png";
 import certificatesWebp from "../assets/illustrations/certificates.webp";
 import { courseService } from "../services/courseService.js";
+import * as announcementService from "../services/announcementService.js";
 import {
     assignments,
     quizzes,
@@ -605,6 +607,7 @@ function Assignments() {
     );
 }
 
+
 // ── Quizzes ───────────────────────────────────────────────────────────────
 function Quizzes() {
     return (
@@ -676,8 +679,58 @@ function Certificates() {
 
 // ── Notifications ─────────────────────────────────────────────────────────
 function Notifications() {
+    const [liveAnnouncements, setLiveAnnouncements] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetch = async () => {
+            try {
+                const res = await announcementService.getAnnouncements();
+                setLiveAnnouncements(res?.announcements || []);
+            } catch (err) {
+                console.error("Failed to load announcement notifications:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetch();
+    }, []);
+
     return (
         <div className="space-y-3 max-w-2xl">
+            {/* ── Live announcements from instructors at the top ── */}
+            {loading ? (
+                <p className="text-caption text-text-secondary">Loading notifications…</p>
+            ) : (
+                liveAnnouncements.map((a) => (
+                    <Card key={a._id} className="flex items-start gap-3 border-primary/40 bg-active-bg/40">
+                        {/* Unread indicator */}
+                        <div className="w-2.5 h-2.5 rounded-full mt-2 shrink-0 bg-primary" />
+                        <div className="flex-1">
+                            {/* Tag */}
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5 mb-1">
+                                <Megaphone size={11} /> New Announcement
+                            </span>
+                            <p className="text-body-lg text-text-primary">{a.title}</p>
+                            <p className="text-caption text-text-secondary mt-0.5">{a.body}</p>
+                        </div>
+                        <span className="text-caption text-text-secondary shrink-0 whitespace-nowrap">
+                            {new Date(a.createdAt).toLocaleDateString("en-IN", {
+                                day: "numeric", month: "short"
+                            })}
+                        </span>
+                    </Card>
+                ))
+            )}
+
+            {/* ── Divider shown only when both sections have content ── */}
+            {liveAnnouncements.length > 0 && mockNotifications.length > 0 && (
+                <p className="text-caption text-text-secondary pt-2 border-t border-border-light">
+                    General Notifications
+                </p>
+            )}
+
+            {/* ── Static general notifications ── */}
             {mockNotifications.map((n) => (
                 <Card key={n.id} className={`flex items-start gap-3 ${!n.read ? "border-primary/30" : ""}`}>
                     <div className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 ${n.read ? "bg-border-light" : "bg-primary"}`} />
