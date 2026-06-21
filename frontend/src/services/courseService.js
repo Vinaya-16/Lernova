@@ -36,7 +36,6 @@ api.interceptors.response.use(
 export const courseService = {
   createCourse: async (courseData) => {
     try {
-      // Your route: POST /api/courses/createCourse
       const response = await api.post('/courses/createCourse', courseData);
       return response.data;
     } catch (error) {
@@ -47,7 +46,6 @@ export const courseService = {
 
   getCourses: async () => {
     try {
-      // Your route: GET /api/courses/courses
       const response = await api.get('/courses/courses');
       return response.data;
     } catch (error) {
@@ -58,7 +56,6 @@ export const courseService = {
 
   getMyCourses: async () => {
     try {
-      // Your route: GET /api/courses/course (singular)
       const response = await api.get('/courses/course');
       return response.data;
     } catch (error) {
@@ -69,7 +66,6 @@ export const courseService = {
 
   updateCourse: async (id, courseData) => {
     try {
-      // Your route: PUT /api/courses/updateCourse/:id
       const response = await api.put(`/courses/updateCourse/${id}`, courseData);
       return response.data;
     } catch (error) {
@@ -80,7 +76,6 @@ export const courseService = {
 
   deleteCourse: async (id) => {
     try {
-      // Your route: DELETE /api/courses/deleteCourse/:id
       const response = await api.delete(`/courses/deleteCourse/${id}`);
       return response.data;
     } catch (error) {
@@ -91,7 +86,6 @@ export const courseService = {
 
   updateCourseStatus: async (id, status) => {
     try {
-      // Your route: PUT /api/courses/updateCourseStatus/:id
       const response = await api.put(`/courses/updateCourseStatus/${id}`, { status });
       return response.data;
     } catch (error) {
@@ -102,7 +96,6 @@ export const courseService = {
 
   getAllCourses: async () => {
     try {
-      // Your route: GET /api/courses/allCourses
       const response = await api.get('/courses/allCourses');
       return response.data;
     } catch (error) {
@@ -110,4 +103,47 @@ export const courseService = {
       throw error;
     }
   },
+
+  uploadVideo: async (courseId, formData, onProgress) => {
+    try {
+      const response = await api.post(
+        `/courses/${courseId}/videos`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            const percent = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            if (onProgress) onProgress(percent);
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error uploading video:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getVideos: async (courseId) => {
+    try {
+      const response = await api.get(`/courses/${courseId}/videos`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching videos:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  deleteVideo: async (courseId, videoId) => {
+    try {
+      const response = await api.delete(`/courses/${courseId}/videos/${videoId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting video:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
 };

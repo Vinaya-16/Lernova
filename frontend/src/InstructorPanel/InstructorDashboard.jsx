@@ -34,7 +34,6 @@ import {
     announcements as mockAnnouncements,
     reviews,
 } from "../mockData/lmsData";
-import { use } from "react";
 
 const navItems = [
     { id: "dashboard", label: "Instructor Dashboard", icon: LayoutDashboard },
@@ -112,7 +111,6 @@ function CreateCourse({ onCreated }) {
         setLoading(true);
 
         try {
-
             const categoryMap = [
                 "Web Development",
                 "Mobile Development",
@@ -129,7 +127,7 @@ function CreateCourse({ onCreated }) {
                 "Finance",
                 "Photography",
                 "Personal Development"
-            ]
+            ];
 
             const courseData = {
                 title,
@@ -159,12 +157,10 @@ function CreateCourse({ onCreated }) {
                 onCreated(response.course);
             }
 
-            alert("Course created successfully ! Waiting for approval");
-        }
-        catch (error) {
+            alert("Course created successfully! Waiting for approval");
+        } catch (error) {
             console.error("failed to create course: ", error);
-        }
-        finally {
+        } finally {
             setLoading(false);
         }
     };
@@ -204,14 +200,12 @@ function CreateCourse({ onCreated }) {
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="49"
                 />
-
                 <Input
                     label="Course Thumbnail URL (Optional)"
                     value={image}
                     onChange={(e) => setImage(e.target.value)}
                     placeholder="https://example.com/course-image.jpg"
                 />
-
                 <Input
                     label="Language"
                     as="select"
@@ -222,7 +216,6 @@ function CreateCourse({ onCreated }) {
                     <option value="Hindi">Hindi</option>
                     <option value="Marathi">Marathi</option>
                 </Input>
-
                 <Input
                     label="Complexity"
                     as="select"
@@ -233,17 +226,168 @@ function CreateCourse({ onCreated }) {
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                 </Input>
-
                 <Input
                     label="Duration"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     placeholder="e.g. 8 weeks"
                 />
-
-                <Button type="submit" full>Create Course (Draft)</Button>
+                <Button type="submit" full disabled={loading}>
+                    {loading ? "Creating..." : "Create Course (Draft)"}
+                </Button>
             </form>
         </Card>
+    );
+}
+
+// ── Video Uploader ───────────────────────────────────────────────────────
+function VideoUploader({ courseId }) {
+    const [file, setFile] = useState(null);
+    const [title, setTitle] = useState("");
+    const [progress, setProgress] = useState(0);
+    const [uploading, setUploading] = useState(false);
+    const [videos, setVideos] = useState([]);
+    const [loadingVideos, setLoadingVideos] = useState(true);
+
+    useEffect(() => {
+        const fetchVideos = async () => {
+            try {
+                const data = await courseService.getVideos(courseId);
+                setVideos(data.videos || []);
+            } catch (err) {
+                console.error("Failed to fetch videos:", err);
+            } finally {
+                setLoadingVideos(false);
+            }
+        };
+
+        fetchVideos();
+    }, [courseId]);
+
+    const handleUpload = async () => {
+        if (!file) return alert("Please select a video first");
+
+        const formData = new FormData();
+        formData.append("video", file);
+        formData.append("title", title || file.name);
+
+        try {
+            setUploading(true);
+            const data = await courseService.uploadVideo(courseId, formData, setProgress);
+            setVideos((prev) => [...prev, data.video]);
+            setFile(null);
+            setTitle("");
+            setProgress(0);
+        } catch (err) {
+            console.error("Upload failed:", err);
+            alert("Upload failed. Please try again.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDelete = async (videoId) => {
+        if (!window.confirm("Delete this video?")) return;
+
+        try {
+            await courseService.deleteVideo(courseId, videoId);
+            setVideos((prev) => prev.filter((v) => v._id !== videoId));
+        } catch (err) {
+            console.error("Delete failed:", err);
+            alert("Failed to delete video.");
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Upload Section */}
+            <div className="border-2 border-dashed border-border-light rounded-2xl p-8 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <FileVideo size={20} className="text-primary" />
+                    <p className="text-body-lg text-text-primary font-medium">Upload a Video</p>
+                </div>
+
+                <Input
+                    label="Video Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Lesson 1 - Introduction"
+                />
+
+                <div>
+                    <label className="block mb-1 text-sm font-medium text-text-secondary">
+                        Select Video File (MP4, MOV)
+                    </label>
+                    <input
+                        type="file"
+                        accept="video/mp4,video/quicktime"
+                        onChange={(e) => setFile(e.target.files[0])}
+                        className="block w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-active-bg file:text-primary hover:file:bg-active-bg cursor-pointer"
+                    />
+                </div>
+
+                {file && (
+                    <p className="text-caption text-text-secondary">
+                        Selected: <span className="text-text-primary font-medium">{file.name}</span> ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                    </p>
+                )}
+
+                {uploading && (
+                    <div className="space-y-1">
+                        <ProgressBar value={progress} />
+                        <p className="text-caption text-text-secondary">{progress}% uploaded...</p>
+                    </div>
+                )}
+
+                <Button onClick={handleUpload} disabled={uploading || !file}>
+                    {uploading ? "Uploading..." : "Upload Video"}
+                </Button>
+            </div>
+
+            {/* Video List */}
+            <div className="space-y-3">
+                <p className="text-h3 text-text-primary">Uploaded Videos</p>
+
+                {loadingVideos ? (
+                    <p className="text-caption text-text-secondary">Loading videos...</p>
+                ) : videos.length === 0 ? (
+                    <div className="text-center py-8 border border-border-light rounded-xl">
+                        <FileVideo size={28} className="text-text-secondary mx-auto mb-2" />
+                        <p className="text-body text-text-secondary">No videos uploaded yet.</p>
+                    </div>
+                ) : (
+                    videos.map((v) => (
+                        <div
+                            key={v._id}
+                            className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-active-bg flex items-center justify-center">
+                                    <FileVideo size={16} className="text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-body text-text-primary">{v.title}</p>
+                                    <a
+                                        href={v.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-caption text-primary underline"
+                                    >
+                                        Preview
+                                    </a>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleDelete(v._id)}
+                                className="text-red-400 hover:text-red-600 transition-colors"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
     );
 }
 
@@ -305,8 +449,7 @@ function CourseEditor({ course, onBack }) {
                         <button
                             key={t.id}
                             onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"
-                                }`}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"}`}
                         >
                             <t.icon size={15} /> {t.label}
                         </button>
@@ -315,24 +458,16 @@ function CourseEditor({ course, onBack }) {
 
                 {tab === "details" && (
                     <div className="space-y-4">
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Course Title
-                            </label>
-
+                            <label className="block mb-1 font-medium">Course Title</label>
                             <input
                                 className="w-full border rounded-lg p-2"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                             />
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Category
-                            </label>
-
+                            <label className="block mb-1 font-medium">Category</label>
                             <select
                                 className="w-full border rounded-lg p-2"
                                 value={category}
@@ -345,12 +480,8 @@ function CourseEditor({ course, onBack }) {
                                 <option value="Design">Design</option>
                             </select>
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Description
-                            </label>
-
+                            <label className="block mb-1 font-medium">Description</label>
                             <textarea
                                 rows={5}
                                 className="w-full border rounded-lg p-2"
@@ -358,12 +489,8 @@ function CourseEditor({ course, onBack }) {
                                 onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Price
-                            </label>
-
+                            <label className="block mb-1 font-medium">Price</label>
                             <input
                                 type="number"
                                 className="w-full border rounded-lg p-2"
@@ -371,12 +498,8 @@ function CourseEditor({ course, onBack }) {
                                 onChange={(e) => setPrice(e.target.value)}
                             />
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Course Thumbnail URL
-                            </label>
-
+                            <label className="block mb-1 font-medium">Course Thumbnail URL</label>
                             <input
                                 type="text"
                                 className="w-full border rounded-lg p-2"
@@ -385,12 +508,8 @@ function CourseEditor({ course, onBack }) {
                                 placeholder="https://example.com/image.jpg"
                             />
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Language
-                            </label>
-
+                            <label className="block mb-1 font-medium">Language</label>
                             <select
                                 className="w-full border rounded-lg p-2"
                                 value={language}
@@ -401,12 +520,8 @@ function CourseEditor({ course, onBack }) {
                                 <option value="Marathi">Marathi</option>
                             </select>
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Complexity
-                            </label>
-
+                            <label className="block mb-1 font-medium">Complexity</label>
                             <select
                                 className="w-full border rounded-lg p-2"
                                 value={complexity}
@@ -417,12 +532,8 @@ function CourseEditor({ course, onBack }) {
                                 <option value="Advanced">Advanced</option>
                             </select>
                         </div>
-
                         <div>
-                            <label className="block mb-1 font-medium">
-                                Duration
-                            </label>
-
+                            <label className="block mb-1 font-medium">Duration</label>
                             <input
                                 type="text"
                                 className="w-full border rounded-lg p-2"
@@ -431,11 +542,7 @@ function CourseEditor({ course, onBack }) {
                                 placeholder="8 weeks"
                             />
                         </div>
-
-                        <Button
-                            onClick={handleSave}
-                            disabled={loading}
-                        >
+                        <Button onClick={handleSave} disabled={loading}>
                             {loading ? "Saving..." : "Save Changes"}
                         </Button>
                     </div>
@@ -466,13 +573,9 @@ function CourseEditor({ course, onBack }) {
                     </div>
                 )}
 
+                {/* FIXED - now uses VideoUploader component */}
                 {tab === "videos" && (
-                    <div className="border-2 border-dashed border-border-light rounded-2xl py-12 flex flex-col items-center justify-center text-center">
-                        <Upload size={28} className="text-primary mb-3" />
-                        <p className="text-body-lg text-text-primary">Drag & drop lesson videos</p>
-                        <p className="text-caption text-text-secondary mb-4">MP4, MOV up to 2GB</p>
-                        <Button variant="outline">Browse Files</Button>
-                    </div>
+                    <VideoUploader courseId={course._id} />
                 )}
 
                 {tab === "materials" && (
@@ -501,33 +604,23 @@ function ManageCourses() {
     const fetchCourses = async () => {
         try {
             setLoading(true);
-
             const response = await courseService.getMyCourses();
-
             setCourses(response.course || []);
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Failed to fetch courses: ", error);
-        }
-        finally {
+        } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Delete this couse?"))
-            return;
+        if (!window.confirm("Delete this course?")) return;
 
         try {
             await courseService.deleteCourse(id);
-
-            setCourses((prev) =>
-                prev.filter((course) => course._id !== id)
-            );
-
-            alert("Course Deleted successfully..")
-        }
-        catch (error) {
+            setCourses((prev) => prev.filter((course) => course._id !== id));
+            alert("Course deleted successfully.");
+        } catch (error) {
             console.error("Delete course failed: ", error);
         }
     };
@@ -545,33 +638,25 @@ function ManageCourses() {
     }
 
     if (loading) {
-        return <p>Loading courses.......</p>;
+        return <p>Loading courses...</p>;
     }
 
     return (
         <div className="space-y-4">
-
             {courses.length === 0 ? (
                 <Card>
                     <p>No courses created yet</p>
                 </Card>
             ) : (
                 courses.map((c) => (
-                    <Card
-                        key={c._id}
-                        className="flex items-center gap-4 flex-wrap"
-                    >
+                    <Card key={c._id} className="flex items-center gap-4 flex-wrap">
                         <img
-                            src={
-                                c.image || ""
-                            }
+                            src={c.image || ""}
                             alt={c.title}
                             className="w-20 h-16 object-cover rounded-xl"
                         />
                         <div className="flex-1 min-w-[180px]">
-                            <p className="text-body-lg text-text-primary">
-                                {c.title}
-                            </p>
+                            <p className="text-body-lg text-text-primary">{c.title}</p>
                             <p className="text-caption text-text-secondary">
                                 {c.category} · {c.studentsEnrolled || 0} students
                             </p>
@@ -587,19 +672,10 @@ function ManageCourses() {
                         >
                             {c.status}
                         </Badge>
-
-                        <Button
-                            variant="outline"
-                            className="h-9 px-4"
-                            onClick={() => setEditing(c)}
-                        >
+                        <Button variant="outline" className="h-9 px-4" onClick={() => setEditing(c)}>
                             Edit
                         </Button>
-                        <Button
-                            variant="destructive"
-                            className="h-9 px-4"
-                            onClick={() => handleDelete(c._id)}
-                        >
+                        <Button variant="destructive" className="h-9 px-4" onClick={() => handleDelete(c._id)}>
                             Delete
                         </Button>
                     </Card>
