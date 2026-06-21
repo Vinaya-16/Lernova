@@ -5,7 +5,9 @@ import dns from "dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import courseRoutes from "./routes/coursesRoute.js";
-import instructorRoutes from "./routes/instructorRoutes.js"
+import instructorRoutes from "./routes/instructorRoutes.js";
+import assignementRoute from "./routes/assignmentRoute.js";
+import submissionRoute from "./routes/submissionRoute.js";
 
 // Set DNS resolution order to ipv4first and set public DNS servers to avoid querySrv ECONNREFUSED on Windows
 dns.setDefaultResultOrder("ipv4first");
@@ -34,6 +36,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/instructors", instructorRoutes);
+app.use("/api/assignments", assignementRoute);
+app.use("api/submissions", submissionRoute);
 
 // Root route
 app.get("/", (req, res) => {

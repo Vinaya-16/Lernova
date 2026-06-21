@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { assignmentService } from "../services/assignmentSubmission.js";
 import axios from "axios";
 import { courseService } from "../services/courseService.js"
 import {
@@ -18,6 +19,10 @@ import {
     Trash2,
     Pencil,
     ChevronLeft,
+    Eye,
+    CheckCircle,
+    XCircle,
+    Clock
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState } from "../components/ui";
@@ -604,23 +609,742 @@ function ManageCourses() {
     );
 }
 
-// ── Manage Assignments ───────────────────────────────────────────────────
+// ── Manage Assignments ──────────────────────────────────────────────────
 function ManageAssignments() {
+    const [assignments, setAssignments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showSubmissions, setShowSubmissions] = useState(false);
+    const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [submissions, setSubmissions] = useState([]);
+    const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+    const [newAssignment, setNewAssignment] = useState({
+        title: '',
+        description: '',
+        dueDate: '',
+        courseId: '',
+        maxMarks: 100
+    });
+    const [creating, setCreating] = useState(false);
+    const [error, setError] = useState(null);
+    const [formError, setFormError] = useState(null);
+    const [availableCourses, setAvailableCourses] = useState([]);
+    const [loadingCourses, setLoadingCourses] = useState(false);
+    const [editingAssignment, setEditingAssignment] = useState(null);
+    const [gradingData, setGradingData] = useState({});
+
+    useEffect(() => {
+        fetchAssignments();
+        fetchCourses();
+    }, []);
+
+    const fetchAssignments = async () => {
+        try {
+            setError(null);
+            const response = await assignmentService.getMyAssignments();
+            console.log('Assignments response:', response);
+
+            let assignmentsData = [];
+            if (response && response.assignments) {
+                assignmentsData = response.assignments;
+            } else if (response && response.data) {
+                assignmentsData = response.data;
+            } else if (Array.isArray(response)) {
+                assignmentsData = response;
+            }
+
+            setAssignments(assignmentsData);
+        } catch (error) {
+            console.error("Failed to fetch assignments:", error);
+            setError("Failed to load assignments. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchCourses = async () => {
+        try {
+            setLoadingCourses(true);
+            const response = await courseService.getMyCourses();
+            console.log('Full response:', response);
+
+            let courses = [];
+            if (response && response.success && response.course) {
+                courses = response.course;
+            } else if (response && response.courses) {
+                courses = response.courses;
+            } else if (Array.isArray(response)) {
+                courses = response;
+            }
+
+            // Filter only approved courses
+            // Assuming 'status' field indicates approval (e.g., 'active', 'approved', or 'published')
+            const approvedCourses = courses.filter(course => {
+                // Check for different possible status fields
+                const status = course.status || course.courseStatus || course.approvalStatus;
+                // Only include if status is 'active', 'approved', 'published', or true
+                return status === 'active' ||
+                    status === 'approved' ||
+                    status === 'published' ||
+                    status === true;
+            });
+
+            setAvailableCourses(approvedCourses);
+            console.log('Loaded approved courses:', approvedCourses);
+        } catch (error) {
+            console.error("Failed to fetch courses:", error);
+            setAvailableCourses([]);
+        } finally {
+            setLoadingCourses(false);
+        }
+    };
+
+    const fetchSubmissions = async (assignmentId) => {
+        try {
+            setLoadingSubmissions(true);
+            const response = await assignmentService.getAssignmentSubmissions(assignmentId);
+            console.log('Submissions response:', response);
+
+            let submissionsData = [];
+            if (response && response.submissions) {
+                submissionsData = response.submissions;
+            } else if (response && response.data) {
+                submissionsData = response.data;
+            } else if (Array.isArray(response)) {
+                submissionsData = response;
+            }
+
+            setSubmissions(submissionsData);
+            setShowSubmissions(true);
+        } catch (error) {
+            console.error("Failed to fetch submissions:", error);
+            alert('Failed to load submissions. Please try again.');
+        } finally {
+            setLoadingSubmissions(false);
+        }
+    };
+
+    const handleViewSubmissions = (assignment) => {
+        setSelectedAssignment(assignment);
+        fetchSubmissions(assignment._id);
+    };
+
+    const handleCreateAssignment = async () => {
+        if (!newAssignment.title.trim()) {
+            setFormError('Please enter an assignment title');
+            return;
+        }
+
+        if (!newAssignment.description.trim()) {
+            setFormError('Please enter an assignment description');
+            return;
+        }
+
+        if (!newAssignment.dueDate) {
+            setFormError('Please select a due date');
+            return;
+        }
+
+        if (!newAssignment.courseId) {
+            setFormError('Please select a course');
+            return;
+        }
+
+        if (!newAssignment.maxMarks || newAssignment.maxMarks < 1) {
+            setFormError('Please enter valid maximum marks (minimum 1)');
+            return;
+        }
+
+        setFormError(null);
+        setCreating(true);
+
+        try {
+            const assignmentData = {
+                title: newAssignment.title.trim(),
+                description: newAssignment.description.trim(),
+                courseId: newAssignment.courseId,
+                dueDate: new Date(newAssignment.dueDate).toISOString(),
+                maxMarks: parseInt(newAssignment.maxMarks) || 100,
+            };
+
+            console.log('Sending assignment data:', JSON.stringify(assignmentData, null, 2));
+
+            const response = await assignmentService.createAssignment(assignmentData);
+            console.log('Create assignment response:', response);
+
+            const newAssignmentObj = response.assignment || response.data || response;
+            setAssignments([newAssignmentObj, ...assignments]);
+            setShowCreateForm(false);
+            setNewAssignment({
+                title: '',
+                description: '',
+                dueDate: '',
+                courseId: '',
+                maxMarks: 100
+            });
+
+            console.log('Assignment created successfully:', newAssignmentObj);
+
+        } catch (error) {
+            console.error("Failed to create assignment:", error);
+
+            let errorMessage = 'Failed to create assignment. Please try again.';
+            if (error.response) {
+                if (error.response.data?.message) {
+                    errorMessage = error.response.data.message;
+                }
+            } else if (error.request) {
+                errorMessage = 'No response from server. Please check your connection.';
+            }
+
+            setFormError(errorMessage);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleDeleteAssignment = async (assignmentId) => {
+        if (!window.confirm('Are you sure you want to delete this assignment?')) return;
+
+        try {
+            await assignmentService.deleteAssignment(assignmentId);
+            setAssignments(assignments.filter(a => a._id !== assignmentId));
+        } catch (error) {
+            console.error("Failed to delete assignment:", error);
+            alert('Failed to delete assignment. Please try again.');
+        }
+    };
+
+    const handleEditAssignment = (assignment) => {
+        setEditingAssignment(assignment);
+        setNewAssignment({
+            title: assignment.title,
+            description: assignment.description || '',
+            dueDate: assignment.dueDate ? new Date(assignment.dueDate).toISOString().split('T')[0] : '',
+            courseId: assignment.courseId?._id || assignment.courseId || '',
+            maxMarks: assignment.maxMarks || 100
+        });
+        setShowCreateForm(true);
+    };
+
+    const handleUpdateAssignment = async () => {
+        if (!newAssignment.title.trim()) {
+            setFormError('Please enter an assignment title');
+            return;
+        }
+
+        setFormError(null);
+        setCreating(true);
+
+        try {
+            const updateData = {
+                title: newAssignment.title.trim(),
+                description: newAssignment.description.trim(),
+                dueDate: new Date(newAssignment.dueDate).toISOString(),
+                maxMarks: parseInt(newAssignment.maxMarks) || 100,
+            };
+
+            const response = await assignmentService.updateAssignment(editingAssignment._id, updateData);
+            const updatedAssignment = response.assignment || response.data || response;
+
+            setAssignments(assignments.map(a =>
+                a._id === updatedAssignment._id ? updatedAssignment : a
+            ));
+
+            setShowCreateForm(false);
+            setEditingAssignment(null);
+            setNewAssignment({
+                title: '',
+                description: '',
+                dueDate: '',
+                courseId: '',
+                maxMarks: 100
+            });
+
+        } catch (error) {
+            console.error("Failed to update assignment:", error);
+            setFormError('Failed to update assignment. Please try again.');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleGradeSubmission = async (submissionId) => {
+        const gradeData = gradingData[submissionId];
+        if (!gradeData || gradeData.marks === undefined || gradeData.marks === '') {
+            alert('Please enter marks for this submission');
+            return;
+        }
+
+        const marks = parseFloat(gradeData.marks);
+        if (isNaN(marks) || marks < 0) {
+            alert('Please enter valid marks (0 or higher)');
+            return;
+        }
+
+        if (marks > (selectedAssignment.maxMarks || 100)) {
+            alert(`Marks cannot exceed ${selectedAssignment.maxMarks || 100}`);
+            return;
+        }
+
+        try {
+            const response = await assignmentService.gradeSubmission(submissionId, {
+                marks: marks,
+                feedback: gradeData.feedback || ''
+            });
+
+            // Update the submission in the list
+            const gradedSubmission = response.submission || response.data || response;
+            setSubmissions(submissions.map(s =>
+                s._id === gradedSubmission._id ? gradedSubmission : s
+            ));
+
+            // Clear grading data for this submission
+            setGradingData(prev => ({ ...prev, [submissionId]: undefined }));
+
+            // Check if all submissions are graded
+            const allGraded = submissions.every(s =>
+                s._id === submissionId || s.status === 'graded'
+            );
+
+            // Update the assignment status if all submissions are graded
+            if (allGraded) {
+                const updatedAssignments = assignments.map(a => {
+                    if (a._id === selectedAssignment._id) {
+                        return { ...a, status: 'graded' };
+                    }
+                    return a;
+                });
+                setAssignments(updatedAssignments);
+            }
+
+        } catch (error) {
+            console.error("Failed to grade submission:", error);
+            alert('Failed to grade submission. Please try again.');
+        }
+    };
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'graded':
+                return <Badge tone="success">Graded</Badge>;
+            case 'submitted':
+                return <Badge tone="info">Submitted</Badge>;
+            case 'pending':
+                return <Badge tone="warning">Pending</Badge>;
+            default:
+                return <Badge tone="warning">{status || 'Pending'}</Badge>;
+        }
+    };
+
+    const formatDate = (date) => {
+        if (!date) return 'No Due Date';
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <p className="text-gray-500">Loading assignments...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
-            {assignments.map((a) => (
-                <Card key={a.id} className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                        <p className="text-body-lg text-text-primary">{a.title}</p>
-                        <p className="text-caption text-text-secondary">{a.course} · Due {a.dueDate}</p>
+            {error && (
+                <div className="text-red-600 p-4 bg-red-50 rounded-md border border-red-200">
+                    {error}
+                    <button
+                        onClick={fetchAssignments}
+                        className="ml-4 text-blue-600 underline hover:text-blue-800"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+            {/* Assignments List */}
+            {assignments.length === 0 ? (
+                <Card className="p-8 text-center">
+                    <p className="text-gray-500">No assignments found. Create your first assignment!</p>
+                </Card>
+            ) : (
+                assignments.map((a) => (
+                    <Card
+                        key={a._id}
+                        className="flex items-center justify-between flex-wrap gap-3 p-4"
+                    >
+                        <div className="flex-1">
+                            <p className="text-body-lg text-text-primary font-medium">
+                                {a.title}
+                            </p>
+
+                            <p className="text-caption text-text-secondary">
+                                {a.courseId?.title || "Unknown Course"} · Due {formatDate(a.dueDate)}
+                                {a.maxMarks && ` · Max Marks: ${a.maxMarks}`}
+                            </p>
+
+                            {a.description && (
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                    {a.description}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {getStatusBadge(a.status)}
+
+                            <Button
+                                variant="outline"
+                                className="h-9 px-3"
+                                onClick={() => handleViewSubmissions(a)}
+                            >
+                                <FileText size={16} className="mr-1" />
+                                Submissions
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                className="h-9 px-3"
+                                onClick={() => handleEditAssignment(a)}
+                            >
+                                <Pencil size={16} />
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                className="h-9 px-3 text-red-600 hover:text-red-700"
+                                onClick={() => handleDeleteAssignment(a._id)}
+                            >
+                                <Trash2 size={16} />
+                            </Button>
+                        </div>
+                    </Card>
+                ))
+            )}
+
+            {/* Create Assignment Button */}
+            {!showCreateForm && (
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        setEditingAssignment(null);
+                        setShowCreateForm(true);
+                    }}
+                >
+                    <PlusCircle size={16} />
+                    Create Assignment
+                </Button>
+            )}
+
+            {/* Create/Edit Form */}
+            {showCreateForm && (
+                <Card className="p-6">
+                    <h3 className="text-xl font-semibold mb-4">
+                        {editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}
+                    </h3>
+
+                    {formError && (
+                        <div className="text-red-600 p-3 bg-red-50 rounded-md mb-4 border border-red-200">
+                            {formError}
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Assignment Title *
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Final Project, Midterm Exam, Homework 1"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={newAssignment.title}
+                                onChange={(e) => setNewAssignment({
+                                    ...newAssignment,
+                                    title: e.target.value
+                                })}
+                                disabled={creating}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Description *
+                            </label>
+                            <textarea
+                                placeholder="Describe the assignment requirements, objectives, and expectations..."
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={newAssignment.description}
+                                onChange={(e) => setNewAssignment({
+                                    ...newAssignment,
+                                    description: e.target.value
+                                })}
+                                disabled={creating}
+                                rows="4"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Course *
+                            </label>
+                            <select
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={newAssignment.courseId}
+                                onChange={(e) => setNewAssignment({
+                                    ...newAssignment,
+                                    courseId: e.target.value
+                                })}
+                                disabled={creating || loadingCourses || !!editingAssignment}
+                            >
+                                <option value="">Select a Course</option>
+                                {availableCourses.map((course) => (
+                                    <option key={course._id} value={course._id}>
+                                        {course.title} {course.code ? `(${course.code})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {editingAssignment && (
+                                <p className="text-xs text-gray-500 mt-1">Course cannot be changed for existing assignments</p>
+                            )}
+                            {!loadingCourses && availableCourses.length === 0 && (
+                                <p className="text-sm text-yellow-600 mt-1">
+                                    No courses available. Please create a course first.
+                                </p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Due Date *
+                            </label>
+                            <input
+                                type="date"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={newAssignment.dueDate}
+                                onChange={(e) => setNewAssignment({
+                                    ...newAssignment,
+                                    dueDate: e.target.value
+                                })}
+                                disabled={creating}
+                                min={new Date().toISOString().split('T')[0]}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Maximum Marks *
+                            </label>
+                            <input
+                                type="number"
+                                placeholder="e.g., 100"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={newAssignment.maxMarks}
+                                onChange={(e) => setNewAssignment({
+                                    ...newAssignment,
+                                    maxMarks: parseInt(e.target.value) || 100
+                                })}
+                                disabled={creating}
+                                min="1"
+                                max="1000"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Enter the total marks for this assignment (1-1000)</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Badge tone={a.status === "Graded" ? "success" : a.status === "Submitted" ? "info" : "warning"}>{a.status}</Badge>
-                        <Button variant="outline" className="h-9 px-4">Review</Button>
+
+                    <div className="flex gap-2 mt-6 pt-4 border-t border-gray-200">
+                        <Button
+                            onClick={editingAssignment ? handleUpdateAssignment : handleCreateAssignment}
+                            disabled={creating}
+                            className="px-6"
+                        >
+                            {creating ? 'Saving...' : (editingAssignment ? 'Update Assignment' : 'Create Assignment')}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowCreateForm(false);
+                                setEditingAssignment(null);
+                                setNewAssignment({
+                                    title: '',
+                                    description: '',
+                                    dueDate: '',
+                                    courseId: '',
+                                    maxMarks: 100
+                                });
+                                setFormError(null);
+                            }}
+                            disabled={creating}
+                        >
+                            Cancel
+                        </Button>
                     </div>
                 </Card>
-            ))}
-            <Button variant="outline"><PlusCircle size={16} /> Create Assignment</Button>
+            )}
+
+            {/* Submissions Modal */}
+            {showSubmissions && selectedAssignment && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                        setShowSubmissions(false);
+                        setSelectedAssignment(null);
+                        setSubmissions([]);
+                        setGradingData({});
+                    }
+                }}>
+                    <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 className="text-xl font-semibold">
+                                    Submissions for: {selectedAssignment.title}
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    Course: {selectedAssignment.courseId?.title || 'Unknown'} ·
+                                    Due: {formatDate(selectedAssignment.dueDate)} ·
+                                    Max Marks: {selectedAssignment.maxMarks || 100}
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowSubmissions(false);
+                                    setSelectedAssignment(null);
+                                    setSubmissions([]);
+                                    setGradingData({});
+                                }}
+                            >
+                                Close
+                            </Button>
+                        </div>
+
+                        {loadingSubmissions ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500">Loading submissions...</p>
+                            </div>
+                        ) : submissions.length === 0 ? (
+                            <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                <p className="text-gray-500">No submissions yet for this assignment.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {submissions.map((submission) => (
+                                    <Card key={submission._id} className="p-4">
+                                        <div className="flex flex-col md:flex-row justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    <p className="font-medium">
+                                                        Student: {submission.studentId?.name || 'Unknown Student'}
+                                                    </p>
+                                                    {getStatusBadge(submission.status)}
+                                                </div>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    Email: {submission.studentId?.email || 'No email'}
+                                                </p>
+                                                {submission.submissionText && (
+                                                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.submissionText}</p>
+                                                    </div>
+                                                )}
+                                                {submission.fileUrl && (
+                                                    <a
+                                                        href={submission.fileUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 hover:underline text-sm inline-block mt-2"
+                                                    >
+                                                        📎 View Attachment
+                                                    </a>
+                                                )}
+                                                {submission.createdAt && (
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        Submitted: {new Date(submission.createdAt).toLocaleString()}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {submission.status !== 'graded' ? (
+                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                    <div>
+                                                        <label className="text-sm font-medium text-gray-700">
+                                                            Marks *
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Enter marks"
+                                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                            value={gradingData[submission._id]?.marks || ''}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                setGradingData(prev => ({
+                                                                    ...prev,
+                                                                    [submission._id]: {
+                                                                        ...prev[submission._id],
+                                                                        marks: value,
+                                                                        maxMarks: selectedAssignment.maxMarks || 100
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            min="0"
+                                                            max={selectedAssignment.maxMarks || 100}
+                                                        />
+                                                        <p className="text-xs text-gray-400 mt-1">
+                                                            Max: {selectedAssignment.maxMarks || 100}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <textarea
+                                                            placeholder="Feedback (optional)"
+                                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                            rows="2"
+                                                            value={gradingData[submission._id]?.feedback || ''}
+                                                            onChange={(e) => {
+                                                                setGradingData(prev => ({
+                                                                    ...prev,
+                                                                    [submission._id]: {
+                                                                        ...prev[submission._id],
+                                                                        feedback: e.target.value
+                                                                    }
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleGradeSubmission(submission._id)}
+                                                        className="w-full"
+                                                        disabled={!gradingData[submission._id]?.marks}
+                                                    >
+                                                        <CheckCircle size={14} className="mr-1" />
+                                                        Grade Submission
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="text-center min-w-[150px] p-3 bg-green-50 rounded-md">
+                                                    <p className="text-lg font-bold text-green-600">
+                                                        {submission.marks}/{selectedAssignment.maxMarks || 100}
+                                                    </p>
+                                                    {submission.feedback && (
+                                                        <p className="text-sm text-gray-600 mt-1">
+                                                            Feedback: {submission.feedback}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-xs text-green-600 mt-1">✓ Graded</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

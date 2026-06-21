@@ -1,10 +1,8 @@
+// services/courseService.js
 import axios from 'axios';
-import { getAllCourses } from '../../../backend/controllers/coursesController';
 
-// Use relative path when using proxy
-const API_URL = '/api'; // This will work with Vite proxy
+const API_URL = '/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -12,20 +10,18 @@ const api = axios.create({
   },
 });
 
-// Add token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('Making request to:', config.url); // Debug log
+    console.log('Making request to:', config.url);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
     console.log('Response:', response.status, response.data);
@@ -40,6 +36,7 @@ api.interceptors.response.use(
 export const courseService = {
   createCourse: async (courseData) => {
     try {
+      // Your route: POST /api/courses/createCourse
       const response = await api.post('/courses/createCourse', courseData);
       return response.data;
     } catch (error) {
@@ -50,6 +47,7 @@ export const courseService = {
 
   getCourses: async () => {
     try {
+      // Your route: GET /api/courses/courses
       const response = await api.get('/courses/courses');
       return response.data;
     } catch (error) {
@@ -60,6 +58,7 @@ export const courseService = {
 
   getMyCourses: async () => {
     try {
+      // Your route: GET /api/courses/course (singular)
       const response = await api.get('/courses/course');
       return response.data;
     } catch (error) {
@@ -70,6 +69,7 @@ export const courseService = {
 
   updateCourse: async (id, courseData) => {
     try {
+      // Your route: PUT /api/courses/updateCourse/:id
       const response = await api.put(`/courses/updateCourse/${id}`, courseData);
       return response.data;
     } catch (error) {
@@ -80,6 +80,7 @@ export const courseService = {
 
   deleteCourse: async (id) => {
     try {
+      // Your route: DELETE /api/courses/deleteCourse/:id
       const response = await api.delete(`/courses/deleteCourse/${id}`);
       return response.data;
     } catch (error) {
@@ -89,26 +90,23 @@ export const courseService = {
   },
 
   updateCourseStatus: async (id, status) => {
-    const response = await api.put(
-      `/courses/updateCourseStatus/${id}`,
-      { status }
-    );
-
-    return response.data;
+    try {
+      // Your route: PUT /api/courses/updateCourseStatus/:id
+      const response = await api.put(`/courses/updateCourseStatus/${id}`, { status });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating course status:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
   getAllCourses: async () => {
     try {
-      const response = await api.get(
-        "/courses/allCourses"
-      );
-
+      // Your route: GET /api/courses/allCourses
+      const response = await api.get('/courses/allCourses');
       return response.data;
     } catch (error) {
-      console.error(
-        "Error fetching all courses:",
-        error.response?.data || error.message
-      );
+      console.error('Error fetching all courses:', error.response?.data || error.message);
       throw error;
     }
   },
