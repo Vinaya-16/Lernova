@@ -1,4 +1,5 @@
 import Assignment from "../models/AssignmentModel.js";
+import Student from "../models/Student.js";
 
 export const createAssignment = async (req, res) => {
     try {
@@ -35,6 +36,35 @@ export const getMyAssignments = async (req, res) => {
     try {
         const assignments = await Assignment.find({
             instructorId: req.user.id,
+        }).populate("courseId", "title");
+
+        res.status(200).json({
+            success: true,
+            assignments,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+export const getStudentAssignments = async (req, res) => {
+    try {
+        const studentId = req.user.id;
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found",
+            });
+        }
+
+        const enrolledCourseIds = student.enrolledCourses || [];
+
+        const assignments = await Assignment.find({
+            courseId: { $in: enrolledCourseIds },
         }).populate("courseId", "title");
 
         res.status(200).json({

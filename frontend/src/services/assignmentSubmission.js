@@ -92,5 +92,35 @@ export const assignmentService = {
       console.error('Error grading submission:', error.response?.data || error.message);
       throw error;
     }
+  },
+
+  getStudentAssignments: async () => {
+    try {
+      const response = await api.get('/assignments/student');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student assignments:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  submitAssignment: async (submissionData) => {
+    try {
+      const response = await api.post('/submissions', submissionData);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting assignment:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  getMySubmissions: async () => {
+    try {
+      const response = await api.get('/submissions/my');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student submissions:', error.response?.data || error.message);
+      throw error;
+    }
   }
 };

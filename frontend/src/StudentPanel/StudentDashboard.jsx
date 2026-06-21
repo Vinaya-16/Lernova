@@ -29,9 +29,9 @@ import studentDashboardWebp from "../assets/illustrations/student-dashboard.webp
 import certificatesImg from "../assets/illustrations/certificates.png";
 import certificatesWebp from "../assets/illustrations/certificates.webp";
 import { courseService } from "../services/courseService.js";
+import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import {
-    assignments,
     quizzes,
     certificates,
     reviews,
@@ -152,7 +152,7 @@ function EnrollModal({ course, onClose, onEnrolled }) {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
-function Dashboard({ goTo, openCourse, enrolledCourses }) {
+function Dashboard({ goTo, openCourse, enrolledCourses, assignments = [] }) {
     const overallProgress = enrolledCourses.length
         ? Math.round(enrolledCourses.reduce((sum, c) => sum + (c.progress || 0), 0) / enrolledCourses.length)
         : 0;
@@ -225,18 +225,25 @@ function Dashboard({ goTo, openCourse, enrolledCourses }) {
 
                     <div className="mt-6 space-y-3">
                         <h4 className="text-body-lg text-text-primary">Upcoming Deadlines</h4>
-                        {assignments.slice(0, 2).map((a) => (
-                            <div key={a.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                    <Clock size={18} className="text-warning" />
-                                    <div>
-                                        <p className="text-body text-text-primary">{a.title}</p>
-                                        <p className="text-caption text-text-secondary">{a.course}</p>
+                        {assignments && assignments.filter((a) => a.status === "Pending").length > 0 ? (
+                            assignments
+                                .filter((a) => a.status === "Pending")
+                                .slice(0, 2)
+                                .map((a) => (
+                                    <div key={a.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <Clock size={18} className="text-warning" />
+                                            <div>
+                                                <p className="text-body text-text-primary font-medium">{a.title}</p>
+                                                <p className="text-caption text-text-secondary">{a.course}</p>
+                                            </div>
+                                        </div>
+                                        <Badge tone="warning">Due {a.dueDate}</Badge>
                                     </div>
-                                </div>
-                                <Badge tone="warning">{a.dueDate}</Badge>
-                            </div>
-                        ))}
+                                ))
+                        ) : (
+                            <p className="text-caption text-text-secondary">No upcoming deadlines.</p>
+                        )}
                     </div>
                 </Card>
 
@@ -573,8 +580,53 @@ function CoursePlayer({ course, onBack }) {
 }
 
 // ── Assignments ───────────────────────────────────────────────────────────
-function Assignments() {
+function Assignments({ assignments = [], loading, onReload }) {
+    const [submittingAssignment, setSubmittingAssignment] = useState(null);
+    const [submissionText, setSubmissionText] = useState("");
+    const [fileUrl, setFileUrl] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
+    const [expandedId, setExpandedId] = useState(null);
+
     const toneFor = { Pending: "warning", Submitted: "info", Graded: "success" };
+
+    const toggleExpand = (id) => {
+        setExpandedId(expandedId === id ? null : id);
+    };
+
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        if (!submissionText && !fileUrl) {
+            setError("Please fill in either submission text or a file URL.");
+            return;
+        }
+        setSubmitting(true);
+        setError("");
+        try {
+            await assignmentService.submitAssignment({
+                assignmentId: submittingAssignment.id,
+                submissionText,
+                fileUrl,
+            });
+            setSuccess(true);
+            setTimeout(() => {
+                setSubmittingAssignment(null);
+                setSubmissionText("");
+                setFileUrl("");
+                setSuccess(false);
+                onReload();
+            }, 1500);
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to submit assignment.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (loading) {
+        return <p className="text-body text-text-secondary">Loading assignments…</p>;
+    }
 
     if (assignments.length === 0) {
         return (
@@ -587,22 +639,158 @@ function Assignments() {
 
     return (
         <div className="space-y-4">
-            {assignments.map((a) => (
-                <Card key={a.id} className="flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center"><ClipboardList size={20} /></div>
-                        <div>
-                            <p className="text-body-lg text-text-primary">{a.title}</p>
-                            <p className="text-caption text-text-secondary">{a.course} · Due {a.dueDate}</p>
+            {assignments.map((a) => {
+                const isExpanded = expandedId === a.id;
+                return (
+                    <Card key={a.id} className="flex flex-col gap-3 transition hover:shadow-soft">
+                        <div className="flex items-center justify-between flex-wrap gap-3 cursor-pointer" onClick={() => toggleExpand(a.id)}>
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center shrink-0">
+                                    <ClipboardList size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-body-lg text-text-primary font-semibold">{a.title}</p>
+                                    <p className="text-caption text-text-secondary">
+                                        {a.course} · Due {a.dueDate}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                                {a.grade && <Badge tone="success">Grade: {a.grade}</Badge>}
+                                <Badge tone={toneFor[a.status]}>{a.status}</Badge>
+                                {a.status === "Pending" && (
+                                    <Button className="h-9 px-4" onClick={() => setSubmittingAssignment(a)}>
+                                        Submit
+                                    </Button>
+                                )}
+                                <button 
+                                    onClick={() => toggleExpand(a.id)}
+                                    className="text-caption text-primary font-medium hover:underline focus:outline-none ml-2"
+                                >
+                                    {isExpanded ? "Hide Details" : "Show Details"}
+                                </button>
+                            </div>
                         </div>
+
+                        {isExpanded && (
+                            <div className="border-t border-border-light pt-3 mt-1 space-y-3 animate-fade-in text-sm">
+                                {a.description && (
+                                    <div>
+                                        <p className="font-semibold text-text-primary">Instructions:</p>
+                                        <p className="text-text-secondary mt-0.5">{a.description}</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <span className="font-semibold text-text-primary">Max Marks:</span>{" "}
+                                    <span className="text-text-secondary">{a.maxMarks || 100}</span>
+                                </div>
+
+                                {(a.status === "Submitted" || a.status === "Graded") && (
+                                    <div className="bg-app rounded-xl p-4 space-y-2 mt-2 border border-border-light">
+                                        <p className="font-semibold text-text-primary border-b border-border-light pb-1 mb-2">Your Submission:</p>
+                                        {a.submittedText && (
+                                            <div>
+                                                <p className="font-medium text-text-primary text-xs">Submission Text:</p>
+                                                <p className="text-text-secondary whitespace-pre-wrap text-sm mt-0.5">{a.submittedText}</p>
+                                            </div>
+                                        )}
+                                        {a.submittedFileUrl && (
+                                            <div className="mt-2">
+                                                <p className="font-medium text-text-primary text-xs">Submitted Link / File URL:</p>
+                                                <a 
+                                                    href={a.submittedFileUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="text-primary hover:underline flex items-center gap-1 mt-0.5 text-sm w-fit"
+                                                >
+                                                    <Paperclip size={14} /> {a.submittedFileUrl}
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {a.status === "Graded" && a.feedback && (
+                                    <div className="bg-success/5 border border-success/20 rounded-xl p-4 mt-2">
+                                        <p className="font-semibold text-success border-b border-success/10 pb-1 mb-2">Instructor Feedback:</p>
+                                        <p className="text-text-secondary whitespace-pre-wrap">{a.feedback}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Card>
+                );
+            })}
+
+            {submittingAssignment && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    onClick={(e) => e.target === e.currentTarget && setSubmittingAssignment(null)}
+                >
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-primary-gradient text-white p-5 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-h3 text-white">Submit Assignment</h3>
+                                <p className="text-caption text-white/80 mt-0.5">{submittingAssignment.title}</p>
+                            </div>
+                            <button 
+                                onClick={() => setSubmittingAssignment(null)}
+                                className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
+                            {error && (
+                                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">
+                                    {error}
+                                </div>
+                            )}
+
+                            {success ? (
+                                <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                                    <CheckCircle2 size={48} className="text-success animate-bounce" />
+                                    <p className="text-body-lg text-text-primary font-bold">Assignment Submitted Successfully!</p>
+                                    <p className="text-caption text-text-secondary">Your submission is recorded.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-caption font-semibold text-text-primary">Submission Text / Notes</label>
+                                        <Input 
+                                            as="textarea"
+                                            rows={4}
+                                            value={submissionText}
+                                            onChange={(e) => setSubmissionText(e.target.value)}
+                                            placeholder="Write your submission content, details, or notes here..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-caption font-semibold text-text-primary">File Link / URL</label>
+                                        <Input 
+                                            type="text"
+                                            value={fileUrl}
+                                            onChange={(e) => setFileUrl(e.target.value)}
+                                            placeholder="Paste your GitHub link, Google Drive link, or file URL here..."
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <Button full type="submit" disabled={submitting}>
+                                            {submitting ? "Submitting..." : "Submit Assignment"}
+                                        </Button>
+                                        <Button variant="outline" type="button" onClick={() => setSubmittingAssignment(null)} disabled={submitting}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </form>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {a.grade && <Badge tone="success">Grade: {a.grade}</Badge>}
-                        <Badge tone={toneFor[a.status]}>{a.status}</Badge>
-                        {a.status === "Pending" && <Button className="h-9 px-4">Submit</Button>}
-                    </div>
-                </Card>
-            ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -823,6 +1011,26 @@ export default function StudentDashboard() {
     const [enrolledIds, setEnrolledIds] = useState(new Set());
     const [enrolledLoading, setEnrolledLoading] = useState(true);
 
+    const [assignmentsList, setAssignmentsList] = useState([]);
+    const [submissionsList, setSubmissionsList] = useState([]);
+    const [assignmentsLoading, setAssignmentsLoading] = useState(true);
+
+    const fetchAssignmentsAndSubmissions = async () => {
+        try {
+            setAssignmentsLoading(true);
+            const [assignmentsRes, submissionsRes] = await Promise.all([
+                assignmentService.getStudentAssignments(),
+                assignmentService.getMySubmissions()
+            ]);
+            setAssignmentsList(assignmentsRes.assignments || []);
+            setSubmissionsList(submissionsRes.submissions || []);
+        } catch (err) {
+            console.error("Failed to fetch assignments/submissions:", err);
+        } finally {
+            setAssignmentsLoading(false);
+        }
+    };
+
     // Fetch enrolled courses on mount
     useEffect(() => {
         const fetchEnrolled = async () => {
@@ -839,6 +1047,7 @@ export default function StudentDashboard() {
             }
         };
         fetchEnrolled();
+        fetchAssignmentsAndSubmissions();
     }, []);
 
     // Called after a successful enrolment — add the new course to local state immediately
@@ -850,6 +1059,7 @@ export default function StudentDashboard() {
             const courses = res.courses || [];
             setEnrolledCourses(courses);
             setEnrolledIds(new Set(courses.map((c) => c._id)));
+            fetchAssignmentsAndSubmissions();
         } catch (err) {
             console.error("Failed to refresh enrolled courses:", err);
         }
@@ -858,6 +1068,45 @@ export default function StudentDashboard() {
     const openCourse = (course) => { setSelectedCourse(course); setPlayingCourse(null); };
     const playCourse = (course) => setPlayingCourse(course);
     const goTo = (id) => { setSelectedCourse(null); setPlayingCourse(null); setActive(id); };
+
+    const mergedAssignments = assignmentsList.map((a) => {
+        const submission = submissionsList.find((s) => s.assignmentId?._id === a._id || s.assignmentId === a._id);
+        let status = "Pending";
+        let grade = null;
+        let feedback = null;
+        let submittedText = null;
+        let submittedFileUrl = null;
+
+        if (submission) {
+            if (submission.status === "graded") {
+                status = "Graded";
+                grade = `${submission.marks}/${a.maxMarks}`;
+                feedback = submission.feedback;
+            } else {
+                status = "Submitted";
+            }
+            submittedText = submission.submissionText;
+            submittedFileUrl = submission.fileUrl;
+        }
+
+        return {
+            id: a._id,
+            title: a.title,
+            description: a.description,
+            course: a.courseId?.title || "Unknown Course",
+            dueDate: new Date(a.dueDate).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            }),
+            maxMarks: a.maxMarks,
+            status,
+            grade,
+            feedback,
+            submittedText,
+            submittedFileUrl,
+        };
+    });
 
     const renderPage = () => {
         if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} />;
@@ -872,10 +1121,10 @@ export default function StudentDashboard() {
         );
 
         switch (active) {
-            case "dashboard":   return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} />;
+            case "dashboard":   return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} assignments={mergedAssignments} />;
             case "browse":      return <BrowseCourses enrolledIds={enrolledIds} onEnrolled={handleEnrolled} />;
             case "enrolled":    return <EnrolledCourses enrolledCourses={enrolledCourses} openCourse={openCourse} onPlay={playCourse} loading={enrolledLoading} />;
-            case "assignments": return <Assignments />;
+            case "assignments": return <Assignments assignments={mergedAssignments} loading={assignmentsLoading} onReload={fetchAssignmentsAndSubmissions} />;
             case "quizzes":     return <Quizzes />;
             case "certificates":return <Certificates />;
             case "notifications":return <Notifications />;

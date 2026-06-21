@@ -4,6 +4,7 @@ import protect from "../middleware/authMiddleware.js";
 import {
     createAssignment,
     getMyAssignments,
+    getStudentAssignments,
     updateAssignment,
     deleteAssignment,
     getAssignmentSubmissions,
@@ -17,6 +18,12 @@ router.get(
     "/my",
     protect,
     getMyAssignments
+);
+
+router.get(
+    "/student",
+    protect,
+    getStudentAssignments
 );
 
 router.put(
