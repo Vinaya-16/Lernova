@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import Instructor from "../models/Instructor.js";
+import Student from "../models/Student.js";
 
 const protect = async (req, res, next) => {
   try {
@@ -14,6 +15,9 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       req.user = await Instructor.findById(decoded.id).select("-password");
+      if (!req.user) {
+        req.user = await Student.findById(decoded.id).select("-password");
+      }
 
       next();
     } else {
