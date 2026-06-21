@@ -23,6 +23,12 @@ const studentSchema = new mongoose.Schema(
       type: String,
       default: "student",
     },
+    enrolledCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Course",
+      },
+    ],
   },
   {
     timestamps: true,

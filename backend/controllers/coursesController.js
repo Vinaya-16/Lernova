@@ -1,4 +1,5 @@
 import coursesModel from "../models/coursesModel.js";
+import Student from "../models/Student.js";
 
 export const createCourse = async (req, res) => {
     try {
@@ -136,8 +137,7 @@ export const getCourses = async (req, res) => {
     }
 };
 
-//Admin panel
-
+// Admin panel
 export const getAllCourses = async (req, res) => {
     try {
         const courses = await coursesModel.find();
@@ -176,6 +176,74 @@ export const updateCourseStatus = async (req, res) => {
             course,
         });
     } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// ── Enrollment ────────────────────────────────────────────────────────────────
+
+// POST /api/courses/:id/enroll
+// Enrolls the logged-in student into a course
+export const enrollCourse = async (req, res) => {
+    try {
+        const course = await coursesModel.findById(req.params.id);
+
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found",
+            });
+        }
+
+        // Prevent duplicate enrolment in the course's student list
+        if (!course.enrolledStudents.includes(req.user.id)) {
+            course.enrolledStudents.push(req.user.id);
+            await course.save();
+        }
+
+        // Prevent duplicate enrolment in the student's course list
+        await Student.findByIdAndUpdate(
+            req.user.id,
+            { $addToSet: { enrolledCourses: course._id } },
+            { new: true }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Enrolled successfully",
+            courseId: course._id,
+        });
+    } catch (error) {
+        console.error("Enroll error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// GET /api/courses/enrolled
+// Returns all courses the logged-in student is enrolled in
+export const getEnrolledCourses = async (req, res) => {
+    try {
+        const student = await Student.findById(req.user.id).populate("enrolledCourses");
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            courses: student.enrolledCourses,
+        });
+    } catch (error) {
+        console.error("Get enrolled courses error:", error);
         res.status(500).json({
             success: false,
             message: error.message,

@@ -7,6 +7,8 @@ import {
     deleteCourse,
     updateCourseStatus,
     getAllCourses,
+    enrollCourse,
+    getEnrolledCourses,
 } from "../controllers/coursesController.js";
 
 import {
@@ -27,6 +29,10 @@ router.delete("/deleteCourse/:id", protect, deleteCourse);
 router.put("/updateCourseStatus/:id", updateCourseStatus);
 router.get("/allCourses", getAllCourses);
 router.get("/courses", getCourses);
+
+// ── Enrollment (MUST be above /:courseId routes to avoid param conflict) ──
+router.get("/enrolled", protect, getEnrolledCourses);
+router.post("/:id/enroll", protect, enrollCourse);
 
 router.post("/:courseId/videos", protect, uploadVideo.single("video"), uploadCourseVideo);
 router.get("/:courseId/videos", protect, getCourseVideos);

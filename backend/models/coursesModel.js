@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-// ADD THIS - video sub-schema
 const VideoSchema = new mongoose.Schema(
     {
         title: {
@@ -15,7 +14,7 @@ const VideoSchema = new mongoose.Schema(
         },
 
         publicId: {
-            type: String,   // Cloudinary public ID — needed to delete the video from Cloudinary
+            type: String,
             default: "",
         },
 
@@ -25,7 +24,7 @@ const VideoSchema = new mongoose.Schema(
         },
 
         order: {
-            type: Number,   // controls the display order of videos in the course
+            type: Number,
             default: 0,
         },
     },
@@ -96,6 +95,14 @@ const CourseSchema = new mongoose.Schema(
             default: 0
         },
 
+        // Array of student ObjectIds who have enrolled
+        enrolledStudents: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Student",
+            },
+        ],
+
         language: {
             type: String,
             default: "English"
@@ -125,7 +132,6 @@ const CourseSchema = new mongoose.Schema(
             default: "",
         },
 
-        // ADD THIS - videos array
         videos: {
             type: [VideoSchema],
             default: [],

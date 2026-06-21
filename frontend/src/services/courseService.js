@@ -146,4 +146,26 @@ export const courseService = {
     }
   },
 
+  // ── NEW: Enroll a student into a course ──────────────────────────────
+  enrollCourse: async (courseId) => {
+    try {
+      const response = await api.post(`/courses/${courseId}/enroll`);
+      return response.data;
+    } catch (error) {
+      console.error('Error enrolling in course:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // ── NEW: Get all courses a student is enrolled in ────────────────────
+  getEnrolledCourses: async () => {
+    try {
+      const response = await api.get('/courses/enrolled');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching enrolled courses:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
 };
