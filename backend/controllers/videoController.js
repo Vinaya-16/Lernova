@@ -1,6 +1,5 @@
 import cloudinary from "../config/cloudinary.js";
-import Course from "../models/Course.js";
-
+import Course from "../models/coursesModel.js";
 // Upload a video
 export const uploadCourseVideo = async (req, res) => {
     try {
