@@ -26,6 +26,7 @@ import studentDashboardImg from "../assets/illustrations/student-dashboard.png";
 import studentDashboardWebp from "../assets/illustrations/student-dashboard.webp";
 import certificatesImg from "../assets/illustrations/certificates.png";
 import certificatesWebp from "../assets/illustrations/certificates.webp";
+import { courseService } from "../services/courseService.js";
 import browseCoursesImg from "../assets/illustrations/browse-courses.png";
 import browseCoursesWebp from "../assets/illustrations/browse-courses.webp";
 import {
