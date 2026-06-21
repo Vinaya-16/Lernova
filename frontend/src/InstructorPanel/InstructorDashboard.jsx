@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { assignmentService } from "../services/assignmentSubmission.js";
 import axios from "axios";
 import { courseService } from "../services/courseService.js"
+import * as announcementService from "../services/announcementService.js";
 import {
     LayoutDashboard,
     PlusCircle,
@@ -22,7 +23,8 @@ import {
     Eye,
     CheckCircle,
     XCircle,
-    Clock
+    Clock,
+    Plus
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState } from "../components/ui";
@@ -1476,27 +1478,348 @@ function StudentProgress() {
 
 // ── Announcements ────────────────────────────────────────────────────────
 function Announcements() {
+    const [announcements, setAnnouncements] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState("");
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingCourses, setLoadingCourses] = useState(false);
+    const [error, setError] = useState(null);
+    const [showCreateCourse, setShowCreateCourse] = useState(false);
+    const [newCourseTitle, setNewCourseTitle] = useState("");
+    const [newCourseDescription, setNewCourseDescription] = useState("");
+
+    // Fetch courses
+    const fetchCourses = async () => {
+        try {
+            setLoadingCourses(true);
+            const response = await courseService.getMyCourses();
+            console.log('Full course response:', response);
+
+            let courseList = [];
+            
+            // Handle different response structures
+            if (response && response.success && response.course) {
+                // Response structure: { success: true, course: [...] }
+                courseList = response.course;
+                console.log('Found courses in response.course:', courseList);
+            } else if (response && response.courses) {
+                // Alternative: { success: true, courses: [...] }
+                courseList = response.courses;
+                console.log('Found courses in response.courses:', courseList);
+            } else if (Array.isArray(response)) {
+                // Response is directly an array
+                courseList = response;
+                console.log('Response is an array:', courseList);
+            } else if (response && response.data) {
+                // Response has data property
+                if (Array.isArray(response.data)) {
+                    courseList = response.data;
+                } else if (response.data.course) {
+                    courseList = response.data.course;
+                } else if (response.data.courses) {
+                    courseList = response.data.courses;
+                }
+            }
+
+            // Ensure we have an array
+            if (!Array.isArray(courseList)) {
+                courseList = [];
+            }
+
+            // Filter only approved/active courses
+            const approvedCourses = courseList.filter(course => {
+                const status = course.status || course.courseStatus || course.approvalStatus || course.isApproved;
+                // Include if status is active, approved, published, or true
+                return status === 'active' ||
+                    status === 'approved' ||
+                    status === 'published' ||
+                    status === true ||
+                    status === 'true' ||
+                    !status; // If no status, include it
+            });
+
+            console.log('Approved courses to set:', approvedCourses);
+            setCourses(approvedCourses);
+            
+            if (approvedCourses.length === 0) {
+                setError('No approved courses available');
+            } else {
+                setError(null);
+            }
+        } catch (error) {
+            console.error("Failed to fetch courses:", error);
+            setCourses([]);
+            setError('Failed to load courses');
+        } finally {
+            setLoadingCourses(false);
+        }
+    };
+
+    // Fetch announcements
+    const fetchAnnouncements = async () => {
+        try {
+            const res = await announcementService.getAnnouncements();
+            console.log('Announcements response:', res);
+            
+            // Handle different response structures
+            let announcementsList = [];
+            if (res && res.announcements) {
+                announcementsList = res.announcements;
+            } else if (res && res.data && res.data.announcements) {
+                announcementsList = res.data.announcements;
+            } else if (Array.isArray(res)) {
+                announcementsList = res;
+            }
+            
+            setAnnouncements(announcementsList);
+        } catch (error) {
+            console.error('Error fetching announcements:', error);
+            setError('Failed to load announcements');
+            setAnnouncements([]);
+        }
+    };
+
+    // Create a new course
+    const handleCreateCourse = async () => {
+        if (!newCourseTitle.trim()) {
+            alert('Please enter a course title');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await courseService.createCourse({
+                title: newCourseTitle.trim(),
+                description: newCourseDescription.trim() || 'No description provided'
+            });
+
+            console.log('Course created:', res);
+
+            // Refresh courses
+            await fetchCourses();
+
+            // Reset form
+            setNewCourseTitle('');
+            setNewCourseDescription('');
+            setShowCreateCourse(false);
+
+            alert('Course created successfully!');
+        } catch (error) {
+            console.error('Error creating course:', error);
+            alert('Failed to create course. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Create announcement
+    const handleCreateAnnouncement = async () => {
+        if (!selectedCourse) {
+            alert("Please select a course");
+            return;
+        }
+
+        if (!title.trim() || !body.trim()) {
+            alert("Please fill all fields");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await announcementService.createAnnouncement({
+                title: title.trim(),
+                body: body.trim(),
+                course: selectedCourse,
+            });
+
+            // Reset form
+            setTitle("");
+            setBody("");
+            setSelectedCourse("");
+
+            // Refresh announcements
+            await fetchAnnouncements();
+            alert('Announcement created successfully!');
+        } catch (error) {
+            console.error('Error creating announcement:', error);
+            alert('Failed to create announcement. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Initial data fetch
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            await Promise.all([fetchCourses(), fetchAnnouncements()]);
+            setIsLoading(false);
+        };
+        fetchData();
+    }, []);
+
+    // Loading state
+    if ((isLoading || loadingCourses) && announcements.length === 0 && courses.length === 0) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <p className="text-text-secondary">Loading...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="grid lg:grid-cols-3 gap-6">
+            {/* Announcements List */}
             <div className="lg:col-span-2 space-y-4">
-                {mockAnnouncements.map((a) => (
-                    <Card key={a.id}>
-                        <div className="flex items-center gap-2 mb-1">
-                            <Megaphone size={16} className="text-primary" />
-                            <p className="text-body-lg text-text-primary">{a.title}</p>
+                <div className="flex justify-between items-center mb-4">
+                    {/* <h2 className="text-h2 text-text-primary">Announcements</h2> */}
+                    <span className="text-caption text-text-secondary">
+                        {announcements.length} total
+                    </span>
+                </div>
+
+                {announcements.length > 0 ? (
+                    announcements.map((a) => (
+                        <Card key={a._id} className="hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Megaphone size={16} className="text-primary" />
+                                <p className="text-body-lg text-text-primary font-medium">
+                                    {a.title}
+                                </p>
+                            </div>
+                            <p className="text-caption text-text-secondary mb-2">
+                                {a.course?.title || "General"} ·{" "}
+                                {new Date(a.createdAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                })}
+                            </p>
+                            <p className="text-body text-text-secondary">
+                                {a.body}
+                            </p>
+                        </Card>
+                    ))
+                ) : (
+                    <Card>
+                        <div className="text-center py-8">
+                            <Megaphone size={48} className="text-gray-300 mx-auto mb-3" />
+                            <p className="text-text-secondary mb-2">No announcements yet</p>
+                            <p className="text-caption text-text-secondary">
+                                Create your first announcement using the form on the right
+                            </p>
                         </div>
-                        <p className="text-caption text-text-secondary mb-2">{a.course} · {a.date}</p>
-                        <p className="text-body text-text-secondary">{a.body}</p>
                     </Card>
-                ))}
+                )}
             </div>
+
+            {/* Create Announcement Form */}
             <Card>
-                <h3 className="text-h3 text-text-primary mb-3">New Announcement</h3>
-                <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" />
-                <Input label="Message" as="textarea" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your announcement..." />
-                <Button full>Post Announcement</Button>
+                <h3 className="text-h3 text-text-primary mb-3">
+                    New Announcement
+                </h3>
+
+                {/* Course Selection or Create */}
+                {courses.length === 0 ? (
+                    <div className="mb-4">
+                        <div className="text-yellow-600 p-3 bg-yellow-50 rounded mb-3">
+                            <p className="font-medium">⚠️ No courses available</p>
+                            <p className="text-sm mt-1">You need to create a course first.</p>
+                        </div>
+
+                        {!showCreateCourse ? (
+                            <Button
+                                full
+                                onClick={() => setShowCreateCourse(true)}
+                                variant="outline"
+                            >
+                                <Plus size={16} className="mr-2" />
+                                Create Course
+                            </Button>
+                        ) : (
+                            <div className="border rounded p-3 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-medium">Create New Course</h4>
+                                    <button
+                                        onClick={() => setShowCreateCourse(false)}
+                                        className="text-gray-500 hover:text-gray-700"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <Input
+                                    label="Course Title"
+                                    value={newCourseTitle}
+                                    onChange={(e) => setNewCourseTitle(e.target.value)}
+                                    placeholder="Enter course title"
+                                    disabled={isLoading}
+                                />
+
+                                <Input
+                                    label="Description (Optional)"
+                                    value={newCourseDescription}
+                                    onChange={(e) => setNewCourseDescription(e.target.value)}
+                                    placeholder="Enter course description"
+                                    disabled={isLoading}
+                                />
+
+                                <Button
+                                    full
+                                    onClick={handleCreateCourse}
+                                    disabled={isLoading || !newCourseTitle.trim()}
+                                >
+                                    {isLoading ? 'Creating...' : 'Create Course'}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <select
+                            className="w-full border border-gray-300 p-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={selectedCourse}
+                            onChange={(e) => setSelectedCourse(e.target.value)}
+                            disabled={isLoading}
+                        >
+                            <option value="">Select Course</option>
+                            {courses.map((course) => (
+                                <option key={course._id || course.id} value={course._id || course.id}>
+                                    {course.title}
+                                </option>
+                            ))}
+                        </select>
+
+                        <Input
+                            label="Title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Announcement title"
+                            disabled={isLoading}
+                        />
+
+                        <Input
+                            label="Message"
+                            as="textarea"
+                            rows={4}
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            placeholder="Write your announcement..."
+                            disabled={isLoading}
+                        />
+
+                        <Button
+                            full
+                            onClick={handleCreateAnnouncement}
+                            disabled={isLoading || !selectedCourse || !title.trim() || !body.trim()}
+                            className="mt-2"
+                        >
+                            {isLoading ? 'Creating...' : 'Post Announcement'}
+                        </Button>
+                    </>
+                )}
             </Card>
         </div>
     );
