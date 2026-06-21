@@ -39,6 +39,7 @@ export default function Login() {
 
             setLoading(false);
 
+            // Redirect user based on their authenticated role (e.g., admin@lernova.com has 'admin' role)
             const role = data.role || "student";
             if (role === "admin") {
                 navigate(from && from.startsWith("/admin") ? from : "/admin", { replace: true });

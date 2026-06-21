@@ -73,10 +73,9 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <AdminDashboard/>
-          // <PrivateRoute requiredRole="admin">
-          //   <AdminDashboard />
-          // </PrivateRoute>
+          <PrivateRoute requiredRole="admin">
+            <AdminDashboard />
+          </PrivateRoute>
         }
       />
 

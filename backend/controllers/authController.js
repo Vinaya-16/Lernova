@@ -106,7 +106,7 @@ export const login = async (req, res) => {
       }
     }
 
-    // 2. Check Student collection
+    // 2. Check Student collection (Note: this collection also includes custom roles like 'admin')
     const student = await Student.findOne({ email });
     if (student) {
       if (await student.matchPassword(password)) {
