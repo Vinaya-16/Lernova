@@ -1084,12 +1084,77 @@ function Announcements() {
     const [showCreateCourse, setShowCreateCourse] = useState(false);
     const [newCourseTitle, setNewCourseTitle] = useState("");
     const [newCourseDescription, setNewCourseDescription] = useState("");
+    const [deletingId, setDeletingId] = useState(null);
+
+    const getUser = () => {
+        try {
+            const userData = localStorage.getItem('user');
+            if (!userData) {
+                return { role: 'student', isInstructor: false };
+            }
+            
+            const user = JSON.parse(userData);
+            let role = user.role || user.userType || user.accountType || user.type;
+            
+            if (!role) {
+                role = localStorage.getItem('userRole') || localStorage.getItem('role');
+            }
+            
+            if (!role) {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        const parts = token.split('.');
+                        if (parts.length === 3) {
+                            const payload = JSON.parse(atob(parts[1]));
+                            role = payload.role || payload.userType || payload.isInstructor;
+                            if (role) {
+                                user.role = role;
+                                localStorage.setItem('user', JSON.stringify(user));
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Error decoding token:', e);
+                    }
+                }
+            }
+            
+            const isInstructor = role === 'instructor' || role === 'admin' || role === 'teacher';
+            
+            return {
+                ...user,
+                _id: user._id || user.id || user.userId,
+                id: user.id || user._id || user.userId,
+                role: role || 'student',
+                isInstructor: isInstructor
+            };
+        } catch (error) {
+            console.error('Error getting user:', error);
+            return { role: 'student', isInstructor: false };
+        }
+    };
+
+    const currentUser = getUser();
+    const isInstructor = currentUser.isInstructor;
+    const [hasInstructorCourses, setHasInstructorCourses] = useState(false);
 
     const fetchCourses = async () => {
         try {
             setLoadingCourses(true);
             const response = await courseService.getMyCourses();
+            
             let courseList = response?.course || response?.courses || (Array.isArray(response) ? response : []);
+            
+            if (courseList.length > 0) {
+                setHasInstructorCourses(true);
+                if (!currentUser.isInstructor) {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    user.role = 'instructor';
+                    localStorage.setItem('user', JSON.stringify(user));
+                    window.location.reload();
+                }
+            }
+            
             const approved = courseList.filter(c => {
                 const s = c.status || c.courseStatus || c.approvalStatus || c.isApproved;
                 return ["active", "approved", "published", true, "true"].includes(s) || !s;
@@ -1097,26 +1162,108 @@ function Announcements() {
             setCourses(approved);
             if (approved.length === 0) setError('No approved courses available');
             else setError(null);
-        } catch { setCourses([]); setError('Failed to load courses'); }
-        finally { setLoadingCourses(false); }
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+            setCourses([]);
+            setError('Failed to load courses');
+        } finally {
+            setLoadingCourses(false);
+        }
     };
 
     const fetchAnnouncements = async () => {
         try {
-            const res = await announcementService.getAnnouncements();
+            let res;
+            const isInstructor = currentUser.isInstructor || hasInstructorCourses;
+            
+            if (isInstructor) {
+                res = await announcementService.getMyAnnouncements();
+            } else {
+                res = await announcementService.getAnnouncements();
+            }
+            
             setAnnouncements(res?.announcements || []);
-        } catch { setError('Failed to load announcements'); setAnnouncements([]); }
+        } catch (error) {
+            console.error('Error fetching announcements:', error);
+            setError('Failed to load announcements');
+            setAnnouncements([]);
+        }
+    };
+
+    const handleDeleteAnnouncement = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this announcement?')) {
+            return;
+        }
+
+        setDeletingId(id);
+        try {
+            await announcementService.deleteAnnouncement(id);
+            setAnnouncements(announcements.filter(a => a._id !== id));
+            alert('Announcement deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting announcement:', error);
+            alert('Failed to delete announcement. Please try again.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleCreateCourse = async () => {
+        if (!newCourseTitle.trim()) {
+            alert('Please enter a course title');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await courseService.createCourse({
+                title: newCourseTitle.trim(),
+                description: newCourseDescription.trim() || 'No description provided'
+            });
+
+            await fetchCourses();
+            setNewCourseTitle('');
+            setNewCourseDescription('');
+            setShowCreateCourse(false);
+            alert('Course created successfully!');
+        } catch (error) {
+            console.error('Error creating course:', error);
+            alert('Failed to create course. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleCreateAnnouncement = async () => {
-        if (!selectedCourse || !title.trim() || !body.trim()) { alert("Please fill all fields"); return; }
+        if (!selectedCourse) {
+            alert("Please select a course");
+            return;
+        }
+
+        if (!title.trim() || !body.trim()) {
+            alert("Please fill all fields");
+            return;
+        }
+
         setIsLoading(true);
         try {
-            await announcementService.createAnnouncement({ title: title.trim(), body: body.trim(), course: selectedCourse });
-            setTitle(""); setBody(""); setSelectedCourse("");
+            await announcementService.createAnnouncement({
+                title: title.trim(),
+                body: body.trim(),
+                course: selectedCourse,
+            });
+
+            setTitle("");
+            setBody("");
+            setSelectedCourse("");
             await fetchAnnouncements();
-        } catch { alert('Failed to create announcement.'); }
-        finally { setIsLoading(false); }
+            alert('Announcement created successfully!');
+        } catch (error) {
+            console.error('Error creating announcement:', error);
+            alert('Failed to create announcement. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -1128,34 +1275,204 @@ function Announcements() {
         init();
     }, []);
 
-    if ((isLoading || loadingCourses) && announcements.length === 0 && courses.length === 0)
-        return <div className="flex justify-center items-center h-64"><p className="text-text-secondary">Loading...</p></div>;
+    if ((isLoading || loadingCourses) && announcements.length === 0 && courses.length === 0) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <p className="text-text-secondary">Loading...</p>
+            </div>
+        );
+    }
+
+    const finalIsInstructor = isInstructor || hasInstructorCourses || courses.length > 0;
 
     return (
         <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-                <span className="text-caption text-text-secondary">{announcements.length} total</span>
-                {announcements.length > 0 ? announcements.map((a) => (
-                    <Card key={a._id} className="hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-1"><Megaphone size={16} className="text-primary" /><p className="text-body-lg text-text-primary font-medium">{a.title}</p></div>
-                        <p className="text-caption text-text-secondary mb-2">{a.course?.title || "General"} · {new Date(a.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                        <p className="text-body text-text-secondary">{a.body}</p>
+                <div className="flex justify-between items-center mb-4">
+                    {/* <h2 className="text-h2 text-text-primary">Announcements</h2> */}
+                    <span className="text-caption text-text-secondary">
+                        {announcements.length} total
+                    </span>
+                </div>
+
+                {announcements.length > 0 ? (
+                    announcements.map((a) => {
+                        const isOwnAnnouncement = (() => {
+                            let createdById = null;
+                            if (a.createdBy) {
+                                if (typeof a.createdBy === 'object' && a.createdBy._id) {
+                                    createdById = a.createdBy._id.toString();
+                                } else if (typeof a.createdBy === 'string') {
+                                    createdById = a.createdBy;
+                                }
+                            }
+                            return createdById === currentUser._id?.toString();
+                        })();
+
+                        return (
+                            <Card key={a._id} className="hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Megaphone size={16} className="text-primary" />
+                                            <p className="text-body-lg text-text-primary font-medium">
+                                                {a.title}
+                                            </p>
+                                            {/* {finalIsInstructor && isOwnAnnouncement && (
+                                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full ml-2">
+                                                    You
+                                                </span>
+                                            )} */}
+                                        </div>
+                                        <p className="text-caption text-text-secondary mb-2">
+                                            {a.course?.title || "General"} ·{" "}
+                                            {new Date(a.createdAt).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric'
+                                            })}
+                                        </p>
+                                        <p className="text-body text-text-secondary">
+                                            {a.body}
+                                        </p>
+                                    </div>
+                                    {finalIsInstructor && isOwnAnnouncement && (
+                                        <button
+                                            onClick={() => handleDeleteAnnouncement(a._id)}
+                                            disabled={deletingId === a._id}
+                                            className="text-red-500 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg flex-shrink-0"
+                                            title="Delete announcement"
+                                        >
+                                            {deletingId === a._id ? (
+                                                <span className="text-sm">Deleting...</span>
+                                            ) : (
+                                                <Trash2 size={18} />
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </Card>
+                        );
+                    })
+                ) : (
+                    <Card>
+                        <div className="text-center py-8">
+                            <Megaphone size={48} className="text-gray-300 mx-auto mb-3" />
+                            <p className="text-text-secondary mb-2">No announcements yet</p>
+                            <p className="text-caption text-text-secondary">
+                                {finalIsInstructor 
+                                    ? 'Create your first announcement using the form on the right'
+                                    : 'Check back later for announcements from your instructors'}
+                            </p>
+                        </div>
                     </Card>
-                )) : <Card><div className="text-center py-8"><Megaphone size={48} className="text-gray-300 mx-auto mb-3" /><p className="text-text-secondary">No announcements yet</p></div></Card>}
+                )}
             </div>
+
             <Card>
                 <h3 className="text-h3 text-text-primary mb-3">New Announcement</h3>
-                {courses.length === 0 ? (
-                    <div className="text-yellow-600 p-3 bg-yellow-50 rounded mb-3"><p className="font-medium">⚠️ No courses available</p></div>
+                
+                {!finalIsInstructor ? (
+                    <div className="text-yellow-600 p-3 bg-yellow-50 rounded">
+                        <p className="font-medium">Only instructors can create announcements</p>
+                        <p className="text-sm mt-1">
+                            Role detected: {currentUser.role}
+                        </p>
+                    </div>
+                ) : courses.length === 0 ? (
+                    <div className="mb-4">
+                        <div className="text-yellow-600 p-3 bg-yellow-50 rounded mb-3">
+                            <p className="font-medium">No courses available</p>
+                            <p className="text-sm mt-1">You need to create a course first.</p>
+                        </div>
+
+                        {!showCreateCourse ? (
+                            <Button
+                                full
+                                onClick={() => setShowCreateCourse(true)}
+                                variant="outline"
+                            >
+                                <Plus size={16} className="mr-2" />
+                                Create Course
+                            </Button>
+                        ) : (
+                            <div className="border rounded p-3 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-medium">Create New Course</h4>
+                                    <button
+                                        onClick={() => setShowCreateCourse(false)}
+                                        className="text-gray-500 hover:text-gray-700"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <Input
+                                    label="Course Title"
+                                    value={newCourseTitle}
+                                    onChange={(e) => setNewCourseTitle(e.target.value)}
+                                    placeholder="Enter course title"
+                                    disabled={isLoading}
+                                />
+
+                                <Input
+                                    label="Description (Optional)"
+                                    value={newCourseDescription}
+                                    onChange={(e) => setNewCourseDescription(e.target.value)}
+                                    placeholder="Enter course description"
+                                    disabled={isLoading}
+                                />
+
+                                <Button
+                                    full
+                                    onClick={handleCreateCourse}
+                                    disabled={isLoading || !newCourseTitle.trim()}
+                                >
+                                    {isLoading ? 'Creating...' : 'Create Course'}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 ) : (
                     <>
-                        <select className="w-full border border-gray-300 p-2 rounded mb-3" value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)} disabled={isLoading}>
+                        <select
+                            className="w-full border border-gray-300 p-2 rounded mb-3"
+                            value={selectedCourse}
+                            onChange={(e) => setSelectedCourse(e.target.value)}
+                            disabled={isLoading}
+                        >
                             <option value="">Select Course</option>
-                            {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+                            {courses.map((c) => (
+                                <option key={c._id} value={c._id}>
+                                    {c.title}
+                                </option>
+                            ))}
                         </select>
-                        <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" disabled={isLoading} />
-                        <Input label="Message" as="textarea" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your announcement..." disabled={isLoading} />
-                        <Button full onClick={handleCreateAnnouncement} disabled={isLoading || !selectedCourse || !title.trim() || !body.trim()} className="mt-2">
+
+                        <Input
+                            label="Title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Announcement title"
+                            disabled={isLoading}
+                        />
+
+                        <Input
+                            label="Message"
+                            as="textarea"
+                            rows={4}
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            placeholder="Write your announcement..."
+                            disabled={isLoading}
+                        />
+
+                        <Button
+                            full
+                            onClick={handleCreateAnnouncement}
+                            disabled={isLoading || !selectedCourse || !title.trim() || !body.trim()}
+                            className="mt-2"
+                        >
                             {isLoading ? 'Creating...' : 'Post Announcement'}
                         </Button>
                     </>

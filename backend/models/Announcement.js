@@ -13,7 +13,6 @@ const announcementSchema = new mongoose.Schema(
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
-      // Optional — announcements can be general (not tied to a specific course)
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
