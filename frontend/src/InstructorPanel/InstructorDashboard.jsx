@@ -4,6 +4,7 @@ import axios from "axios";
 import { courseService } from "../services/courseService.js"
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
+import * as discussionService from "../services/discussionService.js";
 import {
     LayoutDashboard,
     PlusCircle,
@@ -28,9 +29,11 @@ import {
     Plus,
     ChevronRight,
     ChevronDown,
+    MessageSquare,
+    Send,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
-import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState } from "../components/ui";
+import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState, Avatar } from "../components/ui";
 import {
     courses as allCourses,
     students,
@@ -47,6 +50,7 @@ const navItems = [
     { id: "quizzes", label: "Manage Quizzes", icon: HelpCircle },
     { id: "progress", label: "Student Progress", icon: Users },
     { id: "announcements", label: "Announcements", icon: Megaphone },
+    { id: "discussions", label: "Discussion Forum", icon: MessageSquare },
     { id: "analytics", label: "Course Analytics", icon: BarChart3 },
 ];
 
@@ -1569,6 +1573,165 @@ function Announcements() {
     );
 }
 
+// ── Discussion Forum ──────────────────────────────────────────────────────
+function DiscussionForum() {
+    const [discussions, setDiscussions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [replyText, setReplyText] = useState({});
+    const [submittingReply, setSubmittingReply] = useState({});
+    const [error, setError] = useState("");
+
+    const fetchDiscussions = async () => {
+        try {
+            setLoading(true);
+            const res = await discussionService.getInstructorDiscussions();
+            setDiscussions(res.discussions || []);
+        } catch (err) {
+            console.error("Failed to fetch instructor discussions:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDiscussions();
+    }, []);
+
+    const handleAnswerSubmit = async (discussionId) => {
+        const text = replyText[discussionId]?.trim();
+        if (!text) return;
+
+        setSubmittingReply(prev => ({ ...prev, [discussionId]: true }));
+        try {
+            await discussionService.answerQuestion(discussionId, { answer: text });
+            setReplyText(prev => ({ ...prev, [discussionId]: "" }));
+            // Refresh
+            const res = await discussionService.getInstructorDiscussions();
+            setDiscussions(res.discussions || []);
+        } catch (err) {
+            console.error("Failed to submit reply:", err);
+            setError(err.response?.data?.message || "Failed to submit reply.");
+        } finally {
+            setSubmittingReply(prev => ({ ...prev, [discussionId]: false }));
+        }
+    };
+
+    const handleTextChange = (discussionId, value) => {
+        setReplyText(prev => ({ ...prev, [discussionId]: value }));
+    };
+
+    // Group discussions by course
+    const grouped = discussions.reduce((acc, d) => {
+        const courseId = d.courseId?._id || "unknown";
+        const courseTitle = d.courseId?.title || "Unknown Course";
+        if (!acc[courseId]) {
+            acc[courseId] = {
+                title: courseTitle,
+                items: []
+            };
+        }
+        acc[courseId].items.push(d);
+        return acc;
+    }, {});
+
+    const formatDate = (date) => new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    if (loading) {
+        return <p className="text-body text-text-secondary">Loading discussions...</p>;
+    }
+
+    if (discussions.length === 0) {
+        return (
+            <EmptyState
+                icon={MessageSquare}
+                title="No discussions yet"
+                sub="Questions asked by students in your courses will appear here."
+            />
+        );
+    }
+
+    return (
+        <div className="space-y-6 max-w-4xl">
+            {error && (
+                <p className="text-caption text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 mb-3">
+                    {error}
+                </p>
+            )}
+
+            {Object.entries(grouped).map(([courseId, group], idx) => (
+                <div key={courseId}>
+                    {idx > 0 && <hr className="border-border-light my-8" />}
+                    <h3 className="text-h3 text-text-primary mb-4 flex items-center gap-2">
+                        <BookOpen size={20} className="text-primary" />
+                        {group.title}
+                    </h3>
+                    <div className="space-y-4">
+                        {group.items.map((d) => (
+                            <Card key={d._id} className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <Avatar name={d.studentId?.name || "Student"} size={36} />
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-body font-semibold text-text-primary">
+                                                    {d.studentId?.name || "Student"}
+                                                </span>
+                                                <span className="text-caption text-text-secondary">
+                                                    asked on {formatDate(d.createdAt)}
+                                                </span>
+                                            </div>
+                                            <p className="text-body text-text-primary mt-1">{d.question}</p>
+                                        </div>
+                                    </div>
+                                    <Badge tone={d.answer ? "success" : "warning"}>
+                                        {d.answer ? "✓ Answered" : "Awaiting Answer"}
+                                    </Badge>
+                                </div>
+
+                                {d.answer ? (
+                                    <div className="ml-12 bg-green-50 border border-green-200 rounded-xl p-4">
+                                        <p className="text-caption font-semibold text-green-800 mb-1">Your Answer:</p>
+                                        <p className="text-body text-text-primary">{d.answer}</p>
+                                        {d.answeredAt && (
+                                            <p className="text-caption text-text-secondary mt-2">
+                                                Replied on {formatDate(d.answeredAt)}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="ml-12 space-y-2">
+                                        <Input
+                                            as="textarea"
+                                            rows={2}
+                                            placeholder="Write your answer..."
+                                            value={replyText[d._id] || ""}
+                                            onChange={(e) => handleTextChange(d._id, e.target.value)}
+                                            disabled={submittingReply[d._id]}
+                                        />
+                                        <Button
+                                            onClick={() => handleAnswerSubmit(d._id)}
+                                            disabled={submittingReply[d._id] || !replyText[d._id]?.trim()}
+                                        >
+                                            <Send size={16} />
+                                            {submittingReply[d._id] ? "Replying..." : "Reply"}
+                                        </Button>
+                                    </div>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // ── Course Analytics ─────────────────────────────────────────────────────
 function CourseAnalytics() {
     return (
@@ -1613,6 +1776,7 @@ export default function InstructorDashboard() {
             case "quizzes": return <ManageQuizzes />;
             case "progress": return <StudentProgress />;
             case "announcements": return <Announcements />;
+            case "discussions": return <DiscussionForum />;
             case "analytics": return <CourseAnalytics />;
             default: return <Dashboard />;
         }

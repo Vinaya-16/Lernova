@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Compass, BookOpen, PlayCircle, ClipboardList,
     HelpCircle, Award, Bell, MessageSquare, Star, Search, Flame,
     CheckCircle2, Clock, ChevronLeft, FileText, StickyNote, Paperclip,
-    X, Megaphone, Globe, BarChart3, ChevronRight,
+    X, Megaphone, Globe, BarChart3, ChevronRight, Send,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import Illustration from "../components/Illustration";
@@ -16,6 +16,7 @@ import { courseService } from "../services/courseService.js";
 import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
+import * as discussionService from "../services/discussionService.js";
 import {
     quizzes as mockQuizzes, certificates, reviews, discussions,
     notifications as mockNotifications, learningStreak,
@@ -1115,21 +1116,143 @@ function CourseReviews() {
 }
 
 // ── Discussion Forum ──────────────────────────────────────────────────────
-function DiscussionForum() {
+function DiscussionForum({ enrolledCourses = [] }) {
+    const [discussions, setDiscussions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedCourse, setSelectedCourse] = useState("");
+    const [questionText, setQuestionText] = useState("");
+    const [asking, setAsking] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const fetchDiscussions = async () => {
+        try {
+            setLoading(true);
+            const res = await discussionService.getStudentDiscussions();
+            setDiscussions(res.discussions || []);
+        } catch (err) {
+            console.error("Failed to fetch discussions:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchDiscussions(); }, []);
+
+    const handleAsk = async (e) => {
+        e.preventDefault();
+        if (!selectedCourse || !questionText.trim()) {
+            setError("Please select a course and type your question.");
+            return;
+        }
+        setAsking(true);
+        setError("");
+        setSuccess("");
+        try {
+            await discussionService.askQuestion({ courseId: selectedCourse, question: questionText.trim() });
+            setQuestionText("");
+            setSelectedCourse("");
+            setSuccess("Question posted successfully!");
+            setTimeout(() => setSuccess(""), 3000);
+            fetchDiscussions();
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to post question.");
+        } finally {
+            setAsking(false);
+        }
+    };
+
+    // Group discussions by course
+    const grouped = discussions.reduce((acc, d) => {
+        const courseTitle = d.courseId?.title || "Unknown Course";
+        if (!acc[courseTitle]) acc[courseTitle] = [];
+        acc[courseTitle].push(d);
+        return acc;
+    }, {});
+
+    const formatDate = (date) => new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
     return (
-        <div className="space-y-4 max-w-3xl">
-            {discussions.map((d) => (
-                <Card key={d.id} className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
-                        <Avatar name={d.author} size={36} />
-                        <div><p className="text-body-lg text-text-primary">{d.title}</p><p className="text-caption text-text-secondary">{d.course} · by {d.author}</p></div>
+        <div className="space-y-6 max-w-3xl">
+            {/* Ask Question Form */}
+            <Card>
+                <h3 className="text-h3 text-text-primary mb-4">Ask a Question</h3>
+                {error && <p className="text-caption text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 mb-3">{error}</p>}
+                {success && <p className="text-caption text-green-600 bg-green-50 p-3 rounded-xl border border-green-100 mb-3">{success}</p>}
+                <form onSubmit={handleAsk} className="space-y-3">
+                    <Input
+                        label="Select Course"
+                        as="select"
+                        value={selectedCourse}
+                        onChange={(e) => setSelectedCourse(e.target.value)}
+                    >
+                        <option value="">Choose an enrolled course...</option>
+                        {enrolledCourses.map((c) => (
+                            <option key={c._id} value={c._id}>{c.title}</option>
+                        ))}
+                    </Input>
+                    <Input
+                        as="textarea"
+                        rows={3}
+                        label="Your Question"
+                        value={questionText}
+                        onChange={(e) => setQuestionText(e.target.value)}
+                        placeholder="Type your question here..."
+                        disabled={asking}
+                    />
+                    <Button type="submit" disabled={asking || !selectedCourse || !questionText.trim()}>
+                        <Send size={16} />
+                        {asking ? "Posting..." : "Post Question"}
+                    </Button>
+                </form>
+            </Card>
+
+            {/* Discussions List */}
+            {loading ? (
+                <p className="text-body text-text-secondary">Loading your discussions...</p>
+            ) : discussions.length === 0 ? (
+                <EmptyState icon={MessageSquare} title="No discussions yet" sub="Ask your first question about an enrolled course above." />
+            ) : (
+                Object.entries(grouped).map(([courseTitle, items], idx) => (
+                    <div key={courseTitle}>
+                        {idx > 0 && <hr className="border-border-light my-6" />}
+                        <h3 className="text-h3 text-text-primary mb-4">{courseTitle}</h3>
+                        <div className="space-y-3">
+                            {items.map((d) => (
+                                <Card key={d._id} className="space-y-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-active-bg flex items-center justify-center shrink-0 mt-0.5">
+                                            <MessageSquare size={16} className="text-primary" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-body-lg text-text-primary">{d.question}</p>
+                                            <p className="text-caption text-text-secondary mt-1">
+                                                Asked on {formatDate(d.createdAt)}
+                                            </p>
+                                        </div>
+                                        <Badge tone={d.answer ? "success" : "warning"}>
+                                            {d.answer ? "✓ Answered" : "Awaiting Response"}
+                                        </Badge>
+                                    </div>
+                                    {d.answer && (
+                                        <div className="ml-12 bg-green-50 border border-green-200 rounded-xl p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Avatar name={d.instructorId?.name || "Instructor"} size={24} />
+                                                <span className="text-caption font-semibold text-text-primary">{d.instructorId?.name || "Instructor"}</span>
+                                                <span className="text-caption text-text-secondary">replied</span>
+                                            </div>
+                                            <p className="text-body text-text-primary">{d.answer}</p>
+                                            {d.answeredAt && (
+                                                <p className="text-caption text-text-secondary mt-2">{formatDate(d.answeredAt)}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-caption text-text-secondary">{d.replies} replies</p>
-                        <p className="text-caption text-text-secondary">{d.lastActivity}</p>
-                    </div>
-                </Card>
-            ))}
+                ))
+            )}
         </div>
     );
 }
@@ -1210,7 +1333,7 @@ export default function StudentDashboard() {
             case "certificates": return <Certificates />;
             case "notifications":return <Notifications />;
             case "reviews":      return <CourseReviews />;
-            case "discussions":  return <DiscussionForum />;
+            case "discussions":  return <DiscussionForum enrolledCourses={enrolledCourses} />;
             default:             return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} />;
         }
     };
