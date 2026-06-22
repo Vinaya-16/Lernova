@@ -39,63 +39,232 @@ function EnrollModal({ course, onClose, onEnrolled }) {
     const [enrolled, setEnrolled] = useState(false);
     const [error, setError] = useState("");
 
+    // Get current logged-in user details to prefill
+    const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+    // Form fields state
+    const [fullName, setFullName] = useState(loggedInUser.name || "");
+    const [email, setEmail] = useState(loggedInUser.email || "");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [address, setAddress] = useState("");
+    const [city, setCity] = useState("");
+    const [state, setState] = useState("");
+    const [zipCode, setZipCode] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("Credit Card");
+    const [cardholderName, setCardholderName] = useState(loggedInUser.name || "");
+    const [cardNumber, setCardNumber] = useState("");
+    const [expiryDate, setExpiryDate] = useState("MM/YY");
+    const [cvv, setCvv] = useState("");
+    // Step state for multi‑section form
+    const [step, setStep] = useState(1);
+
+    const isPaid = (course.price || 0) > 0;
+
     useEffect(() => {
         const handle = (e) => { if (e.key === "Escape") onClose(); };
         window.addEventListener("keydown", handle);
         return () => window.removeEventListener("keydown", handle);
     }, [onClose]);
 
-    const handleEnroll = async () => {
-        setLoading(true); setError("");
-        try {
-            await courseService.enrollCourse(course._id);
-            setEnrolled(true);
-            onEnrolled(course._id);
-        } catch { setError("Enrollment failed. Please try again."); }
-        finally { setLoading(false); }
+    // Handle input formatting / cleaning
+    const handleCardNumberChange = (e) => {
+        let val = e.target.value.replace(/\D/g, "");
+        if (val.length > 16) val = val.slice(0, 16);
+        // Format with spaces every 4 digits: XXXX XXXX XXXX XXXX
+        const formatted = val.match(/.{1,4}/g)?.join(" ") || val;
+        setCardNumber(formatted);
     };
 
+    const handleExpiryChange = (e) => {
+        let val = e.target.value.replace(/\D/g, "");
+        if (val.length > 4) val = val.slice(0, 4);
+        if (val.length >= 2) {
+            val = val.slice(0, 2) + "/" + val.slice(2);
+        }
+        setExpiryDate(val);
+    };
+
+    const handleCvvChange = (e) => {
+        const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+        setCvv(val);
+    };
+
+    const handleContinue = () => {
+        // Validate billing information before proceeding to payment step
+        if (!fullName.trim()) return fail("Full Name is required.");
+        if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) return fail("Valid Email is required.");
+        if (!phoneNumber.trim()) return fail("Phone Number is required.");
+        if (!address.trim()) return fail("Billing Address is required.");
+        if (!city.trim()) return fail("City is required.");
+        if (!state.trim()) return fail("State is required.");
+        if (!zipCode.trim()) return fail("Zip Code is required.");
+        setStep(2);
+    };
+
+    const handleEnroll = async (e) => {
+        if (e) e.preventDefault();
+        setLoading(true); 
+        setError("");
+
+        // If paid, validate fields
+        if (isPaid) {
+            if (!fullName.trim()) return fail("Full Name is required.");
+            if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) return fail("Valid Email is required.");
+            if (!phoneNumber.trim()) return fail("Phone Number is required.");
+            if (!address.trim()) return fail("Billing Address is required.");
+            if (!city.trim()) return fail("City is required.");
+            if (!state.trim()) return fail("State is required.");
+            if (!zipCode.trim()) return fail("Zip Code is required.");
+
+            if (paymentMethod === "Credit Card" || paymentMethod === "Debit Card") {
+                if (!cardholderName.trim()) return fail("Cardholder Name is required.");
+                const cleanCard = cardNumber.replace(/\s/g, "");
+                if (cleanCard.length !== 16) return fail("Card Number must be 16 digits.");
+                if (!expiryDate.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) return fail("Expiry Date must be in MM/YY format.");
+                if (cvv.length !== 3) return fail("CVV must be 3 digits.");
+            }
+        }
+
+        try {
+            const enrollmentData = isPaid ? {
+                fullName,
+                email,
+                phoneNumber,
+                address,
+                city,
+                state,
+                zipCode,
+                paymentMethod,
+                cardholderName,
+                transactionId: `TXN-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+            } : {};
+
+            await courseService.enrollCourse(course._id, enrollmentData);
+            setEnrolled(true);
+            onEnrolled(course._id);
+        } catch (err) { 
+            setError(err.response?.data?.message || "Enrollment failed. Please try again."); 
+        } finally { 
+            setLoading(false); 
+        }
+    };
+
+    function fail(msg) {
+        setError(msg);
+        setLoading(false);
+    }
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
             onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-                <div className="relative">
-                    <img src={course.image || "/placeholder-course.jpg"} alt={course.title} className="w-full h-44 object-cover" />
-                    <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60">
-                        <X size={16} />
-                    </button>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <Badge tone="primary">{course.category}</Badge>
-                        <h2 className="text-h2 text-text-primary mt-2">{course.title}</h2>
-                        <p className="text-caption text-text-secondary mt-1">{course.instructorName?.name || "Instructor"}</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-caption text-text-secondary">
-                            <Star size={14} className="text-warning fill-warning" />{course.ratings || 0} rating
-                        </div>
-                        <span className="text-h3 text-text-primary">${course.price || 0}</span>
-                    </div>
-                    {course.description && <p className="text-body text-text-secondary line-clamp-3">{course.description}</p>}
-                    {error && <p className="text-caption text-red-500">{error}</p>}
-                    {enrolled ? (
-                        <div className="flex flex-col items-center gap-2 py-2">
-                            <CheckCircle2 size={36} className="text-success" />
-                            <p className="text-body-lg text-text-primary font-semibold">You're enrolled!</p>
-                            <p className="text-caption text-text-secondary">Go to My Courses to start learning.</p>
-                            <Button onClick={onClose} className="mt-2">Close</Button>
-                        </div>
-                    ) : (
-                        <div className="flex gap-3">
-                            <Button full onClick={handleEnroll} disabled={loading}>
-                                {loading ? "Enrolling…" : `Enroll Now — $${course.price || 0}`}
-                            </Button>
-                            <Button variant="outline" onClick={onClose}>Cancel</Button>
-                        </div>
-                    )}
-                </div>
+          <div className={`bg-white rounded-2xl shadow-xl w-full ${isPaid && !enrolled ? "max-w-2xl" : "max-w-lg"} overflow-hidden my-8`}> 
+            <div className="relative">
+              <img src={course.image || "/placeholder-course.jpg"} alt={course.title} className="w-full h-44 object-cover" />
+              <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60">
+                <X size={16} />
+              </button>
             </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <Badge tone="primary">{course.category}</Badge>
+                <h2 className="text-h2 text-text-primary mt-2">{course.title}</h2>
+                <p className="text-caption text-text-secondary mt-1">{course.instructorName?.name || "Instructor"}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1 text-caption text-text-secondary">
+                  <Star size={14} className="text-warning fill-warning" />{course.ratings || 0} rating
+                </div>
+                <span className="text-h3 text-text-primary">${course.price || 0}</span>
+              </div>
+
+              {error && <p className="text-caption text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">{error}</p>}
+
+              {enrolled ? (
+                <div className="flex flex-col items-center gap-2 py-6">
+                  <CheckCircle2 size={48} className="text-success animate-bounce" />
+                  <p className="text-body-lg text-text-primary font-bold">You're enrolled!</p>
+                  <p className="text-caption text-text-secondary">Go to My Courses to start learning.</p>
+                  <Button onClick={onClose} className="mt-4">Close</Button>
+                </div>
+              ) : (
+                isPaid ? (
+                  step === 1 ? (
+                    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                      <div className="border-t border-border-light pt-4">
+                        <h3 className="text-body-lg font-bold text-text-primary mb-3">Billing Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" required />
+                          <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input label="Phone Number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+1 234 567 890" required />
+                          <Input label="Street Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" required />
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <Input label="City" value={city} onChange={(e) => setCity(e.target.value)} placeholder="New York" required />
+                          <Input label="State" value={state} onChange={(e) => setState(e.target.value)} placeholder="NY" required />
+                          <div className="col-span-2 md:col-span-1">
+                            <Input label="Zip Code" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="10001" required />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-4 border-t border-border-light">
+                        <Button onClick={handleContinue} disabled={loading}>Continue</Button>
+                        <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleEnroll} className="space-y-4">
+                      <div className="border-t border-border-light pt-4">
+                        <h3 className="text-body-lg font-bold text-text-primary mb-3">Payment Details</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input label="Payment Method" as="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} required>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Debit Card">Debit Card</option>
+                            <option value="PayPal">PayPal</option>
+                            <option value="UPI">UPI</option>
+                          </Input>
+                          {(paymentMethod === "Credit Card" || paymentMethod === "Debit Card") && (
+                            <Input label="Cardholder Name" value={cardholderName} onChange={(e) => setCardholderName(e.target.value)} placeholder="John Doe" required />
+                          )}
+                        </div>
+                        {(paymentMethod === "Credit Card" || paymentMethod === "Debit Card") ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2">
+                              <Input label="Card Number" value={cardNumber} onChange={handleCardNumberChange} placeholder="1111 2222 3333 4444" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input label="Expiry" value={expiryDate} onChange={handleExpiryChange} placeholder="12/28" required />
+                              <Input label="CVV" type="password" value={cvv} onChange={handleCvvChange} placeholder="123" required />
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-caption text-text-secondary mt-1 mb-4">
+                            You will be redirected or prompted for {paymentMethod} authentication upon clicking enroll.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-3 pt-4 border-t border-border-light">
+                        <Button full type="submit" disabled={loading}>
+                          {loading ? "Processing..." : `Pay & Enroll — $${course.price}`}
+                        </Button>
+                        <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>Back</Button>
+                        <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+                      </div>
+                    </form>
+                  )
+                ) : (
+                  <div>
+                    {course.description && <p className="text-body text-text-secondary line-clamp-3">{course.description}</p>}
+                    <div className="flex gap-3 pt-4 border-t border-border-light">
+                      <Button full onClick={handleEnroll} disabled={loading}>Enroll Now — ${course.price}</Button>
+                      <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
         </div>
     );
 }
