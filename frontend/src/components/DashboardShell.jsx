@@ -6,7 +6,7 @@ import { Avatar } from "./ui";
 // Used by StudentDashboard, InstructorDashboard, and AdminDashboard so all three
 // role panels share one consistent, responsive layout.
 export default function DashboardShell({
-    brandLabel = "Skillio",
+    brandLabel = "Lernova",
     roleLabel,
     navItems,
     active,

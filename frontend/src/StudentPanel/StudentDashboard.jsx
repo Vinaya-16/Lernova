@@ -1,25 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-    LayoutDashboard,
-    Compass,
-    BookOpen,
-    PlayCircle,
-    ClipboardList,
-    HelpCircle,
-    Award,
-    Bell,
-    MessageSquare,
-    Star,
-    Search,
-    Flame,
-    CheckCircle2,
-    Clock,
-    ChevronLeft,
-    FileText,
-    StickyNote,
-    Paperclip,
-    X,
-    Megaphone,
+    LayoutDashboard, Compass, BookOpen, PlayCircle, ClipboardList,
+    HelpCircle, Award, Bell, MessageSquare, Star, Search, Flame,
+    CheckCircle2, Clock, ChevronLeft, FileText, StickyNote, Paperclip,
+    X, Megaphone, Globe, BarChart3,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import Illustration from "../components/Illustration";
@@ -32,25 +16,20 @@ import { courseService } from "../services/courseService.js";
 import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import {
-    quizzes,
-    certificates,
-    reviews,
-    discussions,
-    notifications as mockNotifications,
-    learningStreak,
+    quizzes, certificates, reviews, discussions,
+    notifications as mockNotifications, learningStreak,
 } from "../mockData/lmsData";
 
-// Sidebar nav items
 const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "browse", label: "Browse Courses", icon: Compass },
-    { id: "enrolled", label: "Enrolled Courses", icon: BookOpen },
-    { id: "assignments", label: "Assignments", icon: ClipboardList },
-    { id: "quizzes", label: "Quizzes", icon: HelpCircle },
-    { id: "certificates", label: "Certificates", icon: Award },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "reviews", label: "Course Reviews", icon: Star },
-    { id: "discussions", label: "Discussion Forum", icon: MessageSquare },
+    { id: "dashboard",     label: "Dashboard",        icon: LayoutDashboard },
+    { id: "browse",        label: "Browse Courses",   icon: Compass },
+    { id: "enrolled",      label: "My Courses",       icon: BookOpen },
+    { id: "assignments",   label: "Assignments",      icon: ClipboardList },
+    { id: "quizzes",       label: "Quizzes",          icon: HelpCircle },
+    { id: "certificates",  label: "Certificates",     icon: Award },
+    { id: "notifications", label: "Notifications",    icon: Bell },
+    { id: "reviews",       label: "Course Reviews",   icon: Star },
+    { id: "discussions",   label: "Discussion Forum", icon: MessageSquare },
 ];
 
 // ── Enroll Modal ──────────────────────────────────────────────────────────
@@ -59,82 +38,51 @@ function EnrollModal({ course, onClose, onEnrolled }) {
     const [enrolled, setEnrolled] = useState(false);
     const [error, setError] = useState("");
 
-    // Close on Escape key
     useEffect(() => {
-        const handleKey = (e) => { if (e.key === "Escape") onClose(); };
-        window.addEventListener("keydown", handleKey);
-        return () => window.removeEventListener("keydown", handleKey);
+        const handle = (e) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", handle);
+        return () => window.removeEventListener("keydown", handle);
     }, [onClose]);
 
     const handleEnroll = async () => {
-        setLoading(true);
-        setError("");
+        setLoading(true); setError("");
         try {
             await courseService.enrollCourse(course._id);
             setEnrolled(true);
             onEnrolled(course._id);
-        } catch (e) {
-            setError("Enrollment failed. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+        } catch { setError("Enrollment failed. Please try again."); }
+        finally { setLoading(false); }
     };
 
     return (
-        // Backdrop — click outside to close
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={(e) => e.target === e.currentTarget && onClose()}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={(e) => e.target === e.currentTarget && onClose()}>
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-                {/* Course thumbnail */}
                 <div className="relative">
-                    <img
-                        src={course.image || "/placeholder-course.jpg"}
-                        alt={course.title}
-                        className="w-full h-44 object-cover"
-                    />
-                    <button
-                        onClick={onClose}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"
-                    >
+                    <img src={course.image || "/placeholder-course.jpg"} alt={course.title} className="w-full h-44 object-cover" />
+                    <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60">
                         <X size={16} />
                     </button>
                 </div>
-
                 <div className="p-6 space-y-4">
-                    {/* Title + instructor */}
                     <div>
                         <Badge tone="primary">{course.category}</Badge>
                         <h2 className="text-h2 text-text-primary mt-2">{course.title}</h2>
-                        <p className="text-caption text-text-secondary mt-1">
-                            {course.instructorName?.name || "Instructor"}
-                        </p>
+                        <p className="text-caption text-text-secondary mt-1">{course.instructorName?.name || "Instructor"}</p>
                     </div>
-
-                    {/* Rating + price */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1 text-caption text-text-secondary">
-                            <Star size={14} className="text-warning fill-warning" />
-                            {course.ratings || 0} rating
+                            <Star size={14} className="text-warning fill-warning" />{course.ratings || 0} rating
                         </div>
                         <span className="text-h3 text-text-primary">${course.price || 0}</span>
                     </div>
-
-                    {/* Description */}
-                    {course.description && (
-                        <p className="text-body text-text-secondary line-clamp-3">{course.description}</p>
-                    )}
-
-                    {/* Error */}
+                    {course.description && <p className="text-body text-text-secondary line-clamp-3">{course.description}</p>}
                     {error && <p className="text-caption text-red-500">{error}</p>}
-
-                    {/* CTA */}
                     {enrolled ? (
                         <div className="flex flex-col items-center gap-2 py-2">
                             <CheckCircle2 size={36} className="text-success" />
                             <p className="text-body-lg text-text-primary font-semibold">You're enrolled!</p>
-                            <p className="text-caption text-text-secondary">Go to Enrolled Courses to start learning.</p>
+                            <p className="text-caption text-text-secondary">Go to My Courses to start learning.</p>
                             <Button onClick={onClose} className="mt-2">Close</Button>
                         </div>
                     ) : (
@@ -154,34 +102,18 @@ function EnrollModal({ course, onClose, onEnrolled }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 function Dashboard({ goTo, openCourse, enrolledCourses, assignments = [] }) {
     const overallProgress = enrolledCourses.length
-        ? Math.round(enrolledCourses.reduce((sum, c) => sum + (c.progress || 0), 0) / enrolledCourses.length)
-        : 0;
-
-    const continueCourse =
-        enrolledCourses.find((c) => (c.progress || 0) > 0 && (c.progress || 0) < 100) ||
-        enrolledCourses[0];
+        ? Math.round(enrolledCourses.reduce((s, c) => s + (c.progress || 0), 0) / enrolledCourses.length) : 0;
+    const continueCourse = enrolledCourses.find((c) => (c.progress || 0) > 0 && (c.progress || 0) < 100) || enrolledCourses[0];
 
     return (
         <div className="space-y-6">
             <Card className="bg-primary-gradient text-white flex flex-col md:flex-row items-center justify-between gap-4 overflow-hidden relative">
                 <div className="md:flex-1">
                     <h2 className="text-h2 text-white">Unlock 1,000+ Premium Courses Today</h2>
-                    <p className="text-body text-white/80 mt-1 max-w-md">
-                        Learn from industry experts with exclusive content designed to boost your skills.
-                    </p>
-                    <Button variant="subtle" className="mt-4 bg-white text-primary hover:bg-white/90" onClick={() => goTo("browse")}>
-                        Browse Courses
-                    </Button>
+                    <p className="text-body text-white/80 mt-1 max-w-md">Learn from industry experts with exclusive content designed to boost your skills.</p>
+                    <Button variant="subtle" className="mt-4 bg-white text-primary hover:bg-white/90" onClick={() => goTo("browse")}>Browse Courses</Button>
                 </div>
-                <Illustration
-                    src={studentDashboardImg}
-                    webp={studentDashboardWebp}
-                    alt="Student learning illustration"
-                    size="dashboard"
-                    animate="float"
-                    framed
-                    className="hidden md:block shrink-0"
-                />
+                <Illustration src={studentDashboardImg} webp={studentDashboardWebp} alt="Student learning" size="dashboard" animate="float" framed className="hidden md:block shrink-0" />
             </Card>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -197,19 +129,12 @@ function Dashboard({ goTo, openCourse, enrolledCourses, assignments = [] }) {
                         <h3 className="text-h3 text-text-primary">Continue Learning</h3>
                         <button onClick={() => goTo("enrolled")} className="text-caption font-semibold text-primary">View All</button>
                     </div>
-
                     {continueCourse ? (
                         <div className="flex flex-col sm:flex-row gap-4 items-center bg-app rounded-2xl p-4">
-                            <img
-                                src={continueCourse.image || continueCourse.thumbnail || "/placeholder-course.jpg"}
-                                alt={continueCourse.title}
-                                className="w-full sm:w-40 h-28 object-cover rounded-xl"
-                            />
+                            <img src={continueCourse.image || "/placeholder-course.jpg"} alt={continueCourse.title} className="w-full sm:w-40 h-28 object-cover rounded-xl" />
                             <div className="flex-1 w-full">
                                 <p className="text-body-lg text-text-primary">{continueCourse.title}</p>
-                                <p className="text-caption text-text-secondary mb-2">
-                                    {continueCourse.instructorName?.name || continueCourse.instructor}
-                                </p>
+                                <p className="text-caption text-text-secondary mb-2">{continueCourse.instructorName?.name || "Instructor"}</p>
                                 <ProgressBar value={continueCourse.progress || 0} />
                                 <div className="flex items-center justify-between mt-2">
                                     <span className="text-caption text-text-secondary">{continueCourse.progress || 0}% complete</span>
@@ -222,31 +147,25 @@ function Dashboard({ goTo, openCourse, enrolledCourses, assignments = [] }) {
                     ) : (
                         <p className="text-body text-text-secondary">No enrolled courses yet. Browse and enroll to get started!</p>
                     )}
-
                     <div className="mt-6 space-y-3">
                         <h4 className="text-body-lg text-text-primary">Upcoming Deadlines</h4>
-                        {assignments && assignments.filter((a) => a.status === "Pending").length > 0 ? (
-                            assignments
-                                .filter((a) => a.status === "Pending")
-                                .slice(0, 2)
-                                .map((a) => (
-                                    <div key={a.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <Clock size={18} className="text-warning" />
-                                            <div>
-                                                <p className="text-body text-text-primary font-medium">{a.title}</p>
-                                                <p className="text-caption text-text-secondary">{a.course}</p>
-                                            </div>
+                        {assignments.filter((a) => a.status === "Pending").slice(0, 2).length > 0
+                            ? assignments.filter((a) => a.status === "Pending").slice(0, 2).map((a) => (
+                                <div key={a.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                        <Clock size={18} className="text-warning" />
+                                        <div>
+                                            <p className="text-body text-text-primary">{a.title}</p>
+                                            <p className="text-caption text-text-secondary">{a.course}</p>
                                         </div>
-                                        <Badge tone="warning">Due {a.dueDate}</Badge>
                                     </div>
-                                ))
-                        ) : (
-                            <p className="text-caption text-text-secondary">No upcoming deadlines.</p>
-                        )}
+                                    <Badge tone="warning">Due {a.dueDate}</Badge>
+                                </div>
+                            ))
+                            : <p className="text-caption text-text-secondary">No upcoming deadlines.</p>
+                        }
                     </div>
                 </Card>
-
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-4">Recent Activity</h3>
                     <ul className="space-y-4">
@@ -274,88 +193,52 @@ function BrowseCourses({ enrolledIds, onEnrolled }) {
     const [modalCourse, setModalCourse] = useState(null);
 
     useEffect(() => {
-        const fetchCourses = async () => {
-            try {
-                setLoading(true);
-                const response = await courseService.getCourses();
-                setCourses(response.course || []);
-            } catch (error) {
-                console.error("Failed to fetch courses:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCourses();
+        (async () => {
+            try { setLoading(true); const r = await courseService.getCourses(); setCourses(r.course || []); }
+            catch (e) { console.error(e); } finally { setLoading(false); }
+        })();
     }, []);
 
-    const filtered = courses.filter((c) =>
-        c.title.toLowerCase().includes(query.toLowerCase())
-    );
-
+    const filtered = courses.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
     if (loading) return <p className="text-body text-text-secondary">Loading courses…</p>;
 
     return (
         <div className="space-y-6">
-            {/* Enroll modal */}
             {modalCourse && (
-                <EnrollModal
-                    course={modalCourse}
-                    onClose={() => setModalCourse(null)}
-                    onEnrolled={(id) => {
-                        onEnrolled(id);
-                        setModalCourse(null);
-                    }}
-                />
+                <EnrollModal course={modalCourse} onClose={() => setModalCourse(null)}
+                    onEnrolled={(id) => { onEnrolled(id); setModalCourse(null); }} />
             )}
-
-            {/* Search */}
             <div className="relative max-w-md">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
-                <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                <input value={query} onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search by topic, title, or instructor"
-                    className="w-full h-12 rounded-input border border-border-light pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
-                />
+                    className="w-full h-12 rounded-input border border-border-light pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary" />
             </div>
-
-            {/* Course grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filtered.map((c) => {
                     const alreadyEnrolled = enrolledIds.has(c._id);
                     return (
                         <Card key={c._id} className="p-0 overflow-hidden flex flex-col hover:shadow-soft transition">
-                            <img
-                                src={c.image || "/placeholder-course.jpg"}
-                                alt={c.title}
+                            <img src={c.image || "/placeholder-course.jpg"} alt={c.title}
                                 className="w-full h-36 object-cover cursor-pointer"
-                                onClick={() => !alreadyEnrolled && setModalCourse(c)}
-                            />
+                                onClick={() => !alreadyEnrolled && setModalCourse(c)} />
                             <div className="p-4 flex-1 flex flex-col">
                                 <Badge tone="primary">{c.category}</Badge>
                                 <p className="text-body-lg text-text-primary mt-2 line-clamp-2">{c.title}</p>
-                                <p className="text-caption text-text-secondary mt-1">
-                                    {c.instructorName?.name || "Instructor"}
-                                </p>
+                                <p className="text-caption text-text-secondary mt-1">{c.instructorName?.name || "Instructor"}</p>
                                 <div className="flex items-center gap-1 mt-2 text-caption text-text-secondary">
-                                    <Star size={14} className="text-warning fill-warning" />
-                                    {c.ratings || 0}
+                                    <Star size={14} className="text-warning fill-warning" />{c.ratings || 0}
                                 </div>
                                 <div className="flex items-center justify-between mt-4">
                                     <span className="text-h3 text-text-primary">${c.price || 0}</span>
-                                    {alreadyEnrolled ? (
-                                        <Badge tone="success">Enrolled ✓</Badge>
-                                    ) : (
-                                        <Button className="h-9 px-4" onClick={() => setModalCourse(c)}>
-                                            Enroll
-                                        </Button>
-                                    )}
+                                    {alreadyEnrolled
+                                        ? <Badge tone="success">Enrolled ✓</Badge>
+                                        : <Button className="h-9 px-4" onClick={() => setModalCourse(c)}>Enroll</Button>}
                                 </div>
                             </div>
                         </Card>
                     );
                 })}
-
                 {filtered.length === 0 && (
                     <div className="sm:col-span-2 lg:col-span-3 flex flex-col items-center text-center py-12">
                         <p className="text-h3 text-text-primary">No courses found</p>
@@ -371,21 +254,13 @@ function BrowseCourses({ enrolledIds, onEnrolled }) {
 function CourseDetails({ course, onBack, onPlay, enrolledIds, onEnrolled }) {
     const [showModal, setShowModal] = useState(false);
     const isEnrolled = enrolledIds.has(course._id || course.id);
-
     return (
         <div className="space-y-6">
-            {showModal && (
-                <EnrollModal
-                    course={course}
-                    onClose={() => setShowModal(false)}
-                    onEnrolled={(id) => { onEnrolled(id); setShowModal(false); }}
-                />
-            )}
-
+            {showModal && <EnrollModal course={course} onClose={() => setShowModal(false)}
+                onEnrolled={(id) => { onEnrolled(id); setShowModal(false); }} />}
             <button onClick={onBack} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
                 <ChevronLeft size={16} /> Back
             </button>
-
             <Card className="p-0 overflow-hidden">
                 <img src={course.image || course.thumbnail} alt={course.title} className="w-full h-56 object-cover" />
                 <div className="p-6">
@@ -394,121 +269,143 @@ function CourseDetails({ course, onBack, onPlay, enrolledIds, onEnrolled }) {
                     <p className="text-body text-text-secondary mt-2">{course.description}</p>
                     <div className="flex flex-wrap items-center gap-4 mt-4 text-caption text-text-secondary">
                         <span>By {course.instructorName?.name || course.instructor}</span>
-                        <span className="flex items-center gap-1">
-                            <Star size={14} className="text-warning fill-warning" />
-                            {course.ratings || course.rating || 0}
-                        </span>
+                        <span className="flex items-center gap-1"><Star size={14} className="text-warning fill-warning" />{course.ratings || 0}</span>
                         <span>{course.duration}</span>
                         <Badge tone="info">{course.complexity || course.level}</Badge>
                     </div>
                     <div className="mt-6 flex items-center gap-3">
-                        {isEnrolled ? (
-                            <Button onClick={() => onPlay(course)}>
-                                <PlayCircle size={18} /> Continue Learning
-                            </Button>
-                        ) : (
-                            <Button onClick={() => setShowModal(true)}>
-                                Enroll Now — ${course.price || 0}
-                            </Button>
-                        )}
+                        {isEnrolled
+                            ? <Button onClick={() => onPlay(course)}><PlayCircle size={18} /> Continue Learning</Button>
+                            : <Button onClick={() => setShowModal(true)}>Enroll Now — ${course.price || 0}</Button>}
                         <Button variant="outline">Add to Wishlist</Button>
                     </div>
                 </div>
             </Card>
-
             <Card>
                 <h3 className="text-h3 text-text-primary mb-4">Course Curriculum</h3>
-                <div className="space-y-3">
-                    {/* Videos from DB */}
-                    {(course.videos || []).length > 0 ? (
-                        <div className="border border-border-light rounded-xl p-4">
-                            <p className="text-body-lg text-text-primary mb-2">Course Videos</p>
-                            <ul className="space-y-2">
-                                {course.videos.map((v) => (
-                                    <li key={v._id} className="flex items-center justify-between text-body text-text-secondary">
-                                        <span className="flex items-center gap-2">
-                                            <PlayCircle size={16} className="text-text-secondary" />
-                                            {v.title}
-                                        </span>
-                                        <span className="text-caption">{v.duration}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ) : (
-                        <p className="text-caption text-text-secondary">Curriculum will be available once published.</p>
-                    )}
-                </div>
+                {(course.videos || []).length > 0 ? (
+                    <div className="border border-border-light rounded-xl p-4">
+                        <p className="text-body-lg text-text-primary mb-2">Course Videos</p>
+                        <ul className="space-y-2">
+                            {course.videos.map((v) => (
+                                <li key={v._id} className="flex items-center justify-between text-body text-text-secondary">
+                                    <span className="flex items-center gap-2"><PlayCircle size={16} />{v.title}</span>
+                                    <span className="text-caption">{v.duration}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : <p className="text-caption text-text-secondary">Curriculum will be available once published.</p>}
             </Card>
         </div>
     );
 }
 
-// ── Enrolled Courses ──────────────────────────────────────────────────────
+// ── My Courses — instructor-style horizontal cards ────────────────────────
 function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
-    if (loading) return <p className="text-body text-text-secondary">Loading enrolled courses…</p>;
-
-    if (enrolledCourses.length === 0) {
-        return (
-            <div className="flex flex-col items-center text-center py-12">
-                <p className="text-h3 text-text-primary">No enrolled courses yet</p>
-                <p className="text-body text-text-secondary mt-1 max-w-sm">
-                    Browse courses and enroll to start learning.
-                </p>
-            </div>
-        );
-    }
+    if (loading) return <p className="text-body text-text-secondary">Loading your courses…</p>;
+    if (enrolledCourses.length === 0) return (
+        <div className="flex flex-col items-center text-center py-12">
+            <p className="text-h3 text-text-primary">No courses yet</p>
+            <p className="text-body text-text-secondary mt-1 max-w-sm">Browse courses and enroll to start learning.</p>
+        </div>
+    );
 
     return (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {enrolledCourses.map((c) => (
-                <Card key={c._id || c.id} className="p-0 overflow-hidden flex flex-col">
-                    <img
-                        src={c.image || c.thumbnail || "/placeholder-course.jpg"}
-                        alt={c.title}
-                        className="w-full h-36 object-cover cursor-pointer"
-                        onClick={() => openCourse(c)}
-                    />
-                    <div className="p-4 flex-1 flex flex-col">
-                        <p className="text-body-lg text-text-primary line-clamp-2">{c.title}</p>
-                        <p className="text-caption text-text-secondary mt-1 mb-3">
-                            {c.instructorName?.name || c.instructor || "Instructor"}
-                        </p>
-                        <ProgressBar value={c.progress || 0} />
-                        <div className="flex items-center justify-between mt-3">
-                            <span className="text-caption text-text-secondary">{c.progress || 0}% complete</span>
-                            <Button className="h-9 px-4" onClick={() => onPlay(c)}>
-                                <PlayCircle size={16} /> {(c.progress || 0) > 0 ? "Resume" : "Start"}
-                            </Button>
+        <div className="space-y-4">
+            {enrolledCourses.map((c) => {
+                const prog = c.progress || 0;
+                const statusTone = prog === 100 ? "success" : prog > 0 ? "info" : "warning";
+                const statusLabel = prog === 100 ? "Completed" : prog > 0 ? "In Progress" : "Not Started";
+                return (
+                    <Card key={c._id || c.id} className="flex items-center gap-4 flex-wrap">
+                        {/* Thumbnail */}
+                        <img
+                            src={c.image || "/placeholder-course.jpg"} alt={c.title}
+                            className="w-24 object-cover rounded-xl cursor-pointer shrink-0"
+                            style={{ height: "72px" }}
+                            onClick={() => openCourse(c)}
+                        />
+
+                        {/* Info block */}
+                        <div className="flex-1 min-w-[180px]">
+                            <p className="text-body-lg text-text-primary cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => openCourse(c)}>{c.title}</p>
+                            <p className="text-caption text-text-secondary mt-0.5">
+                                {c.category} · {c.instructorName?.name || "Instructor"}
+                            </p>
+                            {/* Meta */}
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                {c.complexity && <span className="flex items-center gap-1 text-caption text-text-secondary"><BarChart3 size={12} />{c.complexity}</span>}
+                                {c.language && <span className="flex items-center gap-1 text-caption text-text-secondary"><Globe size={12} />{c.language}</span>}
+                                {c.videos?.length > 0 && <span className="flex items-center gap-1 text-caption text-text-secondary"><PlayCircle size={12} />{c.videos.length} video{c.videos.length !== 1 ? "s" : ""}</span>}
+                            </div>
+                            {/* Progress */}
+                            <div className="mt-2 max-w-xs">
+                                <ProgressBar value={prog} />
+                                <p className="text-caption text-text-secondary mt-1">{prog}% complete</p>
+                            </div>
                         </div>
-                    </div>
-                </Card>
-            ))}
+
+                        {/* Status */}
+                        <Badge tone={statusTone}>{statusLabel}</Badge>
+
+                        {/* CTA */}
+                        <Button className="h-9 px-4 shrink-0" onClick={() => onPlay(c)}>
+                            <PlayCircle size={16} />{prog > 0 ? "Resume" : "Start"}
+                        </Button>
+                    </Card>
+                );
+            })}
         </div>
     );
 }
 
-// ── Course Player ─────────────────────────────────────────────────────────
-function CoursePlayer({ course, onBack }) {
+// ── Course Player — real video progress tracking ──────────────────────────
+function CoursePlayer({ course, onBack, onProgressUpdate }) {
     const [tab, setTab] = useState("notes");
     const videos = course.videos || [];
+    const [completedIds, setCompletedIds] = useState(new Set());
     const [activeVideo, setActiveVideo] = useState(videos[0] || null);
+    const videoRef = useRef(null);
+
+    const progress = videos.length > 0 ? Math.round((completedIds.size / videos.length) * 100) : 0;
+
+    // Mark video complete once 90% watched
+    const handleTimeUpdate = () => {
+        const vid = videoRef.current;
+        if (!vid || !activeVideo) return;
+        if (vid.duration && vid.currentTime / vid.duration >= 0.9) {
+            setCompletedIds((prev) => {
+                if (prev.has(activeVideo._id)) return prev;
+                const next = new Set(prev);
+                next.add(activeVideo._id);
+                const newProg = Math.round((next.size / videos.length) * 100);
+                if (onProgressUpdate) onProgressUpdate(course._id, newProg);
+                return next;
+            });
+        }
+    };
+
+    // Auto-advance to next video on end
+    const handleEnded = () => {
+        if (!activeVideo) return;
+        const idx = videos.findIndex((v) => v._id === activeVideo._id);
+        if (idx < videos.length - 1) setActiveVideo(videos[idx + 1]);
+    };
 
     return (
         <div className="space-y-4">
             <button onClick={onBack} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
                 <ChevronLeft size={16} /> Back to course
             </button>
-
             <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-4">
                     <Card className="p-0 overflow-hidden">
                         {activeVideo?.url ? (
-                            <video
-                                src={activeVideo.url}
-                                controls
+                            <video ref={videoRef} key={activeVideo._id} src={activeVideo.url} controls
                                 className="w-full aspect-video bg-gray-900"
-                            />
+                                onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} />
                         ) : (
                             <div className="aspect-video bg-gray-900 flex items-center justify-center text-white">
                                 <PlayCircle size={56} className="opacity-80" />
@@ -522,16 +419,9 @@ function CoursePlayer({ course, onBack }) {
 
                     <Card>
                         <div className="flex gap-2 border-b border-border-light pb-2 mb-4">
-                            {[
-                                { id: "notes", label: "Notes", icon: StickyNote },
-                                { id: "resources", label: "Resources", icon: Paperclip },
-                                { id: "discussion", label: "Discussion", icon: MessageSquare },
-                            ].map((t) => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => setTab(t.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"}`}
-                                >
+                            {[{ id: "notes", label: "Notes", icon: StickyNote }, { id: "resources", label: "Resources", icon: Paperclip }, { id: "discussion", label: "Discussion", icon: MessageSquare }].map((t) => (
+                                <button key={t.id} onClick={() => setTab(t.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"}`}>
                                     <t.icon size={15} /> {t.label}
                                 </button>
                             ))}
@@ -543,34 +433,35 @@ function CoursePlayer({ course, onBack }) {
                                 <li className="flex items-center gap-2 text-body text-text-secondary"><FileText size={16} /> Starter files.zip</li>
                             </ul>
                         )}
-                        {tab === "discussion" && (
-                            <EmptyState icon={MessageSquare} title="No discussion yet" sub="Be the first to ask a question." />
-                        )}
+                        {tab === "discussion" && <EmptyState icon={MessageSquare} title="No discussion yet" sub="Be the first to ask a question." />}
                     </Card>
                 </div>
 
-                {/* Video sidebar */}
+                {/* Sidebar with live progress */}
                 <Card>
-                    <h3 className="text-h3 text-text-primary mb-2">Course Videos</h3>
-                    <p className="text-caption text-text-secondary mb-4">{videos.length} video{videos.length !== 1 ? "s" : ""}</p>
+                    <h3 className="text-h3 text-text-primary mb-1">Course Videos</h3>
+                    <p className="text-caption text-text-secondary mb-3">{completedIds.size} / {videos.length} watched</p>
+                    <ProgressBar value={progress} />
+                    <p className="text-caption text-text-secondary mt-1 mb-4">{progress}% complete</p>
 
-                    {videos.length === 0 ? (
-                        <p className="text-caption text-text-secondary">No videos uploaded yet.</p>
-                    ) : (
+                    {videos.length === 0 ? <p className="text-caption text-text-secondary">No videos uploaded yet.</p> : (
                         <div className="space-y-1 max-h-96 overflow-y-auto">
-                            {videos.map((v) => (
-                                <button
-                                    key={v._id}
-                                    onClick={() => setActiveVideo(v)}
-                                    className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-body ${activeVideo?._id === v._id ? "bg-active-bg text-primary" : "hover:bg-app text-text-primary"}`}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <PlayCircle size={15} />
-                                        {v.title}
-                                    </span>
-                                    <span className="text-caption text-text-secondary">{v.duration}</span>
-                                </button>
-                            ))}
+                            {videos.map((v) => {
+                                const isDone = completedIds.has(v._id);
+                                const isActive = activeVideo?._id === v._id;
+                                return (
+                                    <button key={v._id} onClick={() => setActiveVideo(v)}
+                                        className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-body transition-colors ${isActive ? "bg-active-bg text-primary" : "hover:bg-app text-text-primary"}`}>
+                                        <span className="flex items-center gap-2">
+                                            {isDone
+                                                ? <CheckCircle2 size={15} className="text-success shrink-0" />
+                                                : <PlayCircle size={15} className="shrink-0" />}
+                                            <span className="line-clamp-1">{v.title}</span>
+                                        </span>
+                                        <span className="text-caption text-text-secondary shrink-0 ml-2">{v.duration}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </Card>
@@ -581,209 +472,86 @@ function CoursePlayer({ course, onBack }) {
 
 // ── Assignments ───────────────────────────────────────────────────────────
 function Assignments({ assignments = [], loading, onReload }) {
-    const [submittingAssignment, setSubmittingAssignment] = useState(null);
+    const [submitting, setSubmitting] = useState(null);
     const [submissionText, setSubmissionText] = useState("");
     const [fileUrl, setFileUrl] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
-
     const toneFor = { Pending: "warning", Submitted: "info", Graded: "success" };
 
-    const toggleExpand = (id) => {
-        setExpandedId(expandedId === id ? null : id);
-    };
-
-    const handleFormSubmit = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!submissionText && !fileUrl) {
-            setError("Please fill in either submission text or a file URL.");
-            return;
-        }
-        setSubmitting(true);
-        setError("");
+        if (!submissionText && !fileUrl) { setError("Fill in text or URL."); return; }
+        setBusy(true); setError("");
         try {
-            await assignmentService.submitAssignment({
-                assignmentId: submittingAssignment.id,
-                submissionText,
-                fileUrl,
-            });
+            await assignmentService.submitAssignment({ assignmentId: submitting.id, submissionText, fileUrl });
             setSuccess(true);
-            setTimeout(() => {
-                setSubmittingAssignment(null);
-                setSubmissionText("");
-                setFileUrl("");
-                setSuccess(false);
-                onReload();
-            }, 1500);
-        } catch (err) {
-            setError(err.response?.data?.message || "Failed to submit assignment.");
-        } finally {
-            setSubmitting(false);
-        }
+            setTimeout(() => { setSubmitting(null); setSubmissionText(""); setFileUrl(""); setSuccess(false); onReload(); }, 1500);
+        } catch (err) { setError(err.response?.data?.message || "Failed to submit."); }
+        finally { setBusy(false); }
     };
 
-    if (loading) {
-        return <p className="text-body text-text-secondary">Loading assignments…</p>;
-    }
-
-    if (assignments.length === 0) {
-        return (
-            <div className="flex flex-col items-center text-center py-12">
-                <p className="text-h3 text-text-primary">No assignments yet</p>
-                <p className="text-body text-text-secondary mt-1 max-w-sm">New assignments from your enrolled courses will show up here.</p>
-            </div>
-        );
-    }
+    if (loading) return <p className="text-body text-text-secondary">Loading assignments…</p>;
+    if (assignments.length === 0) return (
+        <div className="flex flex-col items-center text-center py-12">
+            <p className="text-h3 text-text-primary">No assignments yet</p>
+            <p className="text-body text-text-secondary mt-1 max-w-sm">New assignments from your enrolled courses will show up here.</p>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
-            {assignments.map((a) => {
-                const isExpanded = expandedId === a.id;
-                return (
-                    <Card key={a.id} className="flex flex-col gap-3 transition hover:shadow-soft">
-                        <div className="flex items-center justify-between flex-wrap gap-3 cursor-pointer" onClick={() => toggleExpand(a.id)}>
-                            <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center shrink-0">
-                                    <ClipboardList size={20} />
-                                </div>
-                                <div>
-                                    <p className="text-body-lg text-text-primary font-semibold">{a.title}</p>
-                                    <p className="text-caption text-text-secondary">
-                                        {a.course} · Due {a.dueDate}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                                {a.grade && <Badge tone="success">Grade: {a.grade}</Badge>}
-                                <Badge tone={toneFor[a.status]}>{a.status}</Badge>
-                                {a.status === "Pending" && (
-                                    <Button className="h-9 px-4" onClick={() => setSubmittingAssignment(a)}>
-                                        Submit
-                                    </Button>
-                                )}
-                                <button 
-                                    onClick={() => toggleExpand(a.id)}
-                                    className="text-caption text-primary font-medium hover:underline focus:outline-none ml-2"
-                                >
-                                    {isExpanded ? "Hide Details" : "Show Details"}
-                                </button>
+            {assignments.map((a) => (
+                <Card key={a.id} className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center shrink-0"><ClipboardList size={20} /></div>
+                            <div>
+                                <p className="text-body-lg text-text-primary font-semibold">{a.title}</p>
+                                <p className="text-caption text-text-secondary">{a.course} · Due {a.dueDate}</p>
                             </div>
                         </div>
-
-                        {isExpanded && (
-                            <div className="border-t border-border-light pt-3 mt-1 space-y-3 animate-fade-in text-sm">
-                                {a.description && (
-                                    <div>
-                                        <p className="font-semibold text-text-primary">Instructions:</p>
-                                        <p className="text-text-secondary mt-0.5">{a.description}</p>
-                                    </div>
-                                )}
-                                <div>
-                                    <span className="font-semibold text-text-primary">Max Marks:</span>{" "}
-                                    <span className="text-text-secondary">{a.maxMarks || 100}</span>
-                                </div>
-
-                                {(a.status === "Submitted" || a.status === "Graded") && (
-                                    <div className="bg-app rounded-xl p-4 space-y-2 mt-2 border border-border-light">
-                                        <p className="font-semibold text-text-primary border-b border-border-light pb-1 mb-2">Your Submission:</p>
-                                        {a.submittedText && (
-                                            <div>
-                                                <p className="font-medium text-text-primary text-xs">Submission Text:</p>
-                                                <p className="text-text-secondary whitespace-pre-wrap text-sm mt-0.5">{a.submittedText}</p>
-                                            </div>
-                                        )}
-                                        {a.submittedFileUrl && (
-                                            <div className="mt-2">
-                                                <p className="font-medium text-text-primary text-xs">Submitted Link / File URL:</p>
-                                                <a 
-                                                    href={a.submittedFileUrl} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer" 
-                                                    className="text-primary hover:underline flex items-center gap-1 mt-0.5 text-sm w-fit"
-                                                >
-                                                    <Paperclip size={14} /> {a.submittedFileUrl}
-                                                </a>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {a.status === "Graded" && a.feedback && (
-                                    <div className="bg-success/5 border border-success/20 rounded-xl p-4 mt-2">
-                                        <p className="font-semibold text-success border-b border-success/10 pb-1 mb-2">Instructor Feedback:</p>
-                                        <p className="text-text-secondary whitespace-pre-wrap">{a.feedback}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Card>
-                );
-            })}
-
-            {submittingAssignment && (
-                <div 
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-                    onClick={(e) => e.target === e.currentTarget && setSubmittingAssignment(null)}
-                >
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                        <div className="bg-primary-gradient text-white p-5 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-h3 text-white">Submit Assignment</h3>
-                                <p className="text-caption text-white/80 mt-0.5">{submittingAssignment.title}</p>
-                            </div>
-                            <button 
-                                onClick={() => setSubmittingAssignment(null)}
-                                className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition"
-                            >
-                                <X size={16} />
+                        <div className="flex items-center gap-3">
+                            {a.grade && <Badge tone="success">Grade: {a.grade}</Badge>}
+                            <Badge tone={toneFor[a.status]}>{a.status}</Badge>
+                            {a.status === "Pending" && <Button className="h-9 px-4" onClick={() => setSubmitting(a)}>Submit</Button>}
+                            <button onClick={() => setExpandedId(expandedId === a.id ? null : a.id)} className="text-caption text-primary font-medium hover:underline">
+                                {expandedId === a.id ? "Hide" : "Details"}
                             </button>
                         </div>
+                    </div>
+                    {expandedId === a.id && (
+                        <div className="border-t border-border-light pt-3 space-y-2 text-sm">
+                            {a.description && <p className="text-text-secondary">{a.description}</p>}
+                            <p><span className="font-semibold text-text-primary">Max Marks:</span> <span className="text-text-secondary">{a.maxMarks || 100}</span></p>
+                        </div>
+                    )}
+                </Card>
+            ))}
 
-                        <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
-                            {error && (
-                                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">
-                                    {error}
-                                </div>
-                            )}
-
+            {submitting && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={(e) => e.target === e.currentTarget && setSubmitting(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+                        <div className="bg-primary-gradient text-white p-5 flex items-center justify-between">
+                            <div><h3 className="text-h3 text-white">Submit Assignment</h3><p className="text-caption text-white/80 mt-0.5">{submitting.title}</p></div>
+                            <button onClick={() => setSubmitting(null)} className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30"><X size={16} /></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            {error && <p className="text-sm text-red-500 bg-red-50 p-3 rounded-xl">{error}</p>}
                             {success ? (
-                                <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
-                                    <CheckCircle2 size={48} className="text-success animate-bounce" />
-                                    <p className="text-body-lg text-text-primary font-bold">Assignment Submitted Successfully!</p>
-                                    <p className="text-caption text-text-secondary">Your submission is recorded.</p>
+                                <div className="flex flex-col items-center py-6 gap-2">
+                                    <CheckCircle2 size={48} className="text-success" />
+                                    <p className="text-body-lg font-bold text-text-primary">Submitted!</p>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-caption font-semibold text-text-primary">Submission Text / Notes</label>
-                                        <Input 
-                                            as="textarea"
-                                            rows={4}
-                                            value={submissionText}
-                                            onChange={(e) => setSubmissionText(e.target.value)}
-                                            placeholder="Write your submission content, details, or notes here..."
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <label className="text-caption font-semibold text-text-primary">File Link / URL</label>
-                                        <Input 
-                                            type="text"
-                                            value={fileUrl}
-                                            onChange={(e) => setFileUrl(e.target.value)}
-                                            placeholder="Paste your GitHub link, Google Drive link, or file URL here..."
-                                        />
-                                    </div>
-
+                                    <Input as="textarea" rows={4} value={submissionText} onChange={(e) => setSubmissionText(e.target.value)} placeholder="Write your submission…" label="Submission Text" />
+                                    <Input type="text" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="GitHub / Drive link…" label="File URL" />
                                     <div className="flex gap-3 pt-2">
-                                        <Button full type="submit" disabled={submitting}>
-                                            {submitting ? "Submitting..." : "Submit Assignment"}
-                                        </Button>
-                                        <Button variant="outline" type="button" onClick={() => setSubmittingAssignment(null)} disabled={submitting}>
-                                            Cancel
-                                        </Button>
+                                        <Button full type="submit" disabled={busy}>{busy ? "Submitting…" : "Submit Assignment"}</Button>
+                                        <Button variant="outline" type="button" onClick={() => setSubmitting(null)}>Cancel</Button>
                                     </div>
                                 </>
                             )}
@@ -794,7 +562,6 @@ function Assignments({ assignments = [], loading, onReload }) {
         </div>
     );
 }
-
 
 // ── Quizzes ───────────────────────────────────────────────────────────────
 function Quizzes() {
@@ -826,21 +593,10 @@ function Certificates() {
             <Card className="bg-primary-gradient text-white flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden">
                 <div className="sm:flex-1">
                     <h2 className="text-h2 text-white">Your Achievements</h2>
-                    <p className="text-body text-white/80 mt-1 max-w-md">
-                        Every completed course adds a verified credential to your profile.
-                    </p>
+                    <p className="text-body text-white/80 mt-1 max-w-md">Every completed course adds a verified credential to your profile.</p>
                 </div>
-                <Illustration
-                    src={certificatesImg}
-                    webp={certificatesWebp}
-                    alt="Certificates illustration"
-                    size="achievement"
-                    animate="scale"
-                    framed
-                    className="hidden sm:block shrink-0"
-                />
+                <Illustration src={certificatesImg} webp={certificatesWebp} alt="Certificates" size="achievement" animate="scale" framed className="hidden sm:block shrink-0" />
             </Card>
-
             {certificates.length === 0 ? (
                 <div className="flex flex-col items-center text-center py-12">
                     <p className="text-h3 text-text-primary">No certificates yet</p>
@@ -849,10 +605,8 @@ function Certificates() {
             ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {certificates.map((c) => (
-                        <Card key={c.id} className="text-center transition-transform duration-300 hover:-translate-y-1">
-                            <div className="w-14 h-14 rounded-2xl bg-primary-gradient text-white flex items-center justify-center mx-auto mb-4">
-                                <Award size={26} />
-                            </div>
+                        <Card key={c.id} className="text-center hover:-translate-y-1 transition-transform duration-300">
+                            <div className="w-14 h-14 rounded-2xl bg-primary-gradient text-white flex items-center justify-center mx-auto mb-4"><Award size={26} /></div>
                             <p className="text-body-lg text-text-primary">{c.course}</p>
                             <p className="text-caption text-text-secondary mt-1">Issued {c.issuedOn}</p>
                             <p className="text-caption text-text-secondary">ID: {c.credentialId}</p>
@@ -869,56 +623,28 @@ function Certificates() {
 function Notifications() {
     const [liveAnnouncements, setLiveAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
-
     useEffect(() => {
-        const fetch = async () => {
-            try {
-                const res = await announcementService.getAnnouncements();
-                setLiveAnnouncements(res?.announcements || []);
-            } catch (err) {
-                console.error("Failed to load announcement notifications:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetch();
+        (async () => {
+            try { const r = await announcementService.getAnnouncements(); setLiveAnnouncements(r?.announcements || []); }
+            catch (e) { console.error(e); } finally { setLoading(false); }
+        })();
     }, []);
-
     return (
         <div className="space-y-3 max-w-2xl">
-            {/* ── Live announcements from instructors at the top ── */}
-            {loading ? (
-                <p className="text-caption text-text-secondary">Loading notifications…</p>
-            ) : (
-                liveAnnouncements.map((a) => (
-                    <Card key={a._id} className="flex items-start gap-3 border-primary/40 bg-active-bg/40">
-                        {/* Unread indicator */}
-                        <div className="w-2.5 h-2.5 rounded-full mt-2 shrink-0 bg-primary" />
-                        <div className="flex-1">
-                            {/* Tag */}
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5 mb-1">
-                                <Megaphone size={11} /> New Announcement
-                            </span>
-                            <p className="text-body-lg text-text-primary">{a.title}</p>
-                            <p className="text-caption text-text-secondary mt-0.5">{a.body}</p>
-                        </div>
-                        <span className="text-caption text-text-secondary shrink-0 whitespace-nowrap">
-                            {new Date(a.createdAt).toLocaleDateString("en-IN", {
-                                day: "numeric", month: "short"
-                            })}
-                        </span>
-                    </Card>
-                ))
-            )}
-
-            {/* ── Divider shown only when both sections have content ── */}
+            {loading ? <p className="text-caption text-text-secondary">Loading…</p> : liveAnnouncements.map((a) => (
+                <Card key={a._id} className="flex items-start gap-3 border-primary/40 bg-active-bg/40">
+                    <div className="w-2.5 h-2.5 rounded-full mt-2 shrink-0 bg-primary" />
+                    <div className="flex-1">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5 mb-1"><Megaphone size={11} /> New Announcement</span>
+                        <p className="text-body-lg text-text-primary">{a.title}</p>
+                        <p className="text-caption text-text-secondary mt-0.5">{a.body}</p>
+                    </div>
+                    <span className="text-caption text-text-secondary shrink-0">{new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                </Card>
+            ))}
             {liveAnnouncements.length > 0 && mockNotifications.length > 0 && (
-                <p className="text-caption text-text-secondary pt-2 border-t border-border-light">
-                    General Notifications
-                </p>
+                <p className="text-caption text-text-secondary pt-2 border-t border-border-light">General Notifications</p>
             )}
-
-            {/* ── Static general notifications ── */}
             {mockNotifications.map((n) => (
                 <Card key={n.id} className={`flex items-start gap-3 ${!n.read ? "border-primary/30" : ""}`}>
                     <div className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 ${n.read ? "bg-border-light" : "bg-primary"}`} />
@@ -936,7 +662,6 @@ function Notifications() {
 // ── Course Reviews ────────────────────────────────────────────────────────
 function CourseReviews() {
     const [rating, setRating] = useState(5);
-
     return (
         <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
@@ -945,22 +670,16 @@ function CourseReviews() {
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <Avatar name={r.student} size={32} />
-                                <div>
-                                    <p className="text-body-lg text-text-primary">{r.student}</p>
-                                    <p className="text-caption text-text-secondary">{r.course}</p>
-                                </div>
+                                <div><p className="text-body-lg text-text-primary">{r.student}</p><p className="text-caption text-text-secondary">{r.course}</p></div>
                             </div>
                             <div className="flex items-center gap-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star key={i} size={14} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />
-                                ))}
+                                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />)}
                             </div>
                         </div>
                         <p className="text-body text-text-secondary">{r.comment}</p>
                     </Card>
                 ))}
             </div>
-
             <Card>
                 <h3 className="text-h3 text-text-primary mb-3">Leave a Review</h3>
                 <div className="flex items-center gap-1 mb-4">
@@ -970,7 +689,7 @@ function CourseReviews() {
                         </button>
                     ))}
                 </div>
-                <Input as="textarea" rows={4} placeholder="Share your experience with this course..." />
+                <Input as="textarea" rows={4} placeholder="Share your experience…" />
                 <Button full>Submit Review</Button>
             </Card>
         </div>
@@ -985,10 +704,7 @@ function DiscussionForum() {
                 <Card key={d.id} className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
                         <Avatar name={d.author} size={36} />
-                        <div>
-                            <p className="text-body-lg text-text-primary">{d.title}</p>
-                            <p className="text-caption text-text-secondary">{d.course} · by {d.author}</p>
-                        </div>
+                        <div><p className="text-body-lg text-text-primary">{d.title}</p><p className="text-caption text-text-secondary">{d.course} · by {d.author}</p></div>
                     </div>
                     <div className="text-right">
                         <p className="text-caption text-text-secondary">{d.replies} replies</p>
@@ -1000,69 +716,49 @@ function DiscussionForum() {
     );
 }
 
-// ── Root Component ────────────────────────────────────────────────────────
+// ── Root ──────────────────────────────────────────────────────────────────
 export default function StudentDashboard() {
     const [active, setActive] = useState("dashboard");
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [playingCourse, setPlayingCourse] = useState(null);
-
-    // Real enrolled courses from the API + a Set of IDs for O(1) lookup
     const [enrolledCourses, setEnrolledCourses] = useState([]);
     const [enrolledIds, setEnrolledIds] = useState(new Set());
     const [enrolledLoading, setEnrolledLoading] = useState(true);
-
     const [assignmentsList, setAssignmentsList] = useState([]);
     const [submissionsList, setSubmissionsList] = useState([]);
     const [assignmentsLoading, setAssignmentsLoading] = useState(true);
 
-    const fetchAssignmentsAndSubmissions = async () => {
+    const fetchEnrolled = async () => {
         try {
-            setAssignmentsLoading(true);
-            const [assignmentsRes, submissionsRes] = await Promise.all([
-                assignmentService.getStudentAssignments(),
-                assignmentService.getMySubmissions()
-            ]);
-            setAssignmentsList(assignmentsRes.assignments || []);
-            setSubmissionsList(submissionsRes.submissions || []);
-        } catch (err) {
-            console.error("Failed to fetch assignments/submissions:", err);
-        } finally {
-            setAssignmentsLoading(false);
-        }
-    };
-
-    // Fetch enrolled courses on mount
-    useEffect(() => {
-        const fetchEnrolled = async () => {
-            try {
-                setEnrolledLoading(true);
-                const res = await courseService.getEnrolledCourses();
-                const courses = res.courses || [];
-                setEnrolledCourses(courses);
-                setEnrolledIds(new Set(courses.map((c) => c._id)));
-            } catch (err) {
-                console.error("Failed to fetch enrolled courses:", err);
-            } finally {
-                setEnrolledLoading(false);
-            }
-        };
-        fetchEnrolled();
-        fetchAssignmentsAndSubmissions();
-    }, []);
-
-    // Called after a successful enrolment — add the new course to local state immediately
-    const handleEnrolled = async (courseId) => {
-        setEnrolledIds((prev) => new Set([...prev, courseId]));
-        // Re-fetch to get the full populated course object
-        try {
+            setEnrolledLoading(true);
             const res = await courseService.getEnrolledCourses();
             const courses = res.courses || [];
             setEnrolledCourses(courses);
             setEnrolledIds(new Set(courses.map((c) => c._id)));
-            fetchAssignmentsAndSubmissions();
-        } catch (err) {
-            console.error("Failed to refresh enrolled courses:", err);
-        }
+        } catch (err) { console.error(err); } finally { setEnrolledLoading(false); }
+    };
+
+    const fetchAssignmentsAndSubmissions = async () => {
+        try {
+            setAssignmentsLoading(true);
+            const [ar, sr] = await Promise.all([assignmentService.getStudentAssignments(), assignmentService.getMySubmissions()]);
+            setAssignmentsList(ar.assignments || []);
+            setSubmissionsList(sr.submissions || []);
+        } catch (err) { console.error(err); } finally { setAssignmentsLoading(false); }
+    };
+
+    useEffect(() => { fetchEnrolled(); fetchAssignmentsAndSubmissions(); }, []);
+
+    const handleEnrolled = async (courseId) => {
+        setEnrolledIds((prev) => new Set([...prev, courseId]));
+        await fetchEnrolled();
+        fetchAssignmentsAndSubmissions();
+    };
+
+    // Live progress update from CoursePlayer — no API call needed, just local state
+    const handleProgressUpdate = (courseId, newProgress) => {
+        setEnrolledCourses((prev) => prev.map((c) => c._id === courseId ? { ...c, progress: newProgress } : c));
+        setPlayingCourse((prev) => prev ? { ...prev, progress: newProgress } : prev);
     };
 
     const openCourse = (course) => { setSelectedCourse(course); setPlayingCourse(null); };
@@ -1070,78 +766,40 @@ export default function StudentDashboard() {
     const goTo = (id) => { setSelectedCourse(null); setPlayingCourse(null); setActive(id); };
 
     const mergedAssignments = assignmentsList.map((a) => {
-        const submission = submissionsList.find((s) => s.assignmentId?._id === a._id || s.assignmentId === a._id);
-        let status = "Pending";
-        let grade = null;
-        let feedback = null;
-        let submittedText = null;
-        let submittedFileUrl = null;
-
-        if (submission) {
-            if (submission.status === "graded") {
-                status = "Graded";
-                grade = `${submission.marks}/${a.maxMarks}`;
-                feedback = submission.feedback;
-            } else {
-                status = "Submitted";
-            }
-            submittedText = submission.submissionText;
-            submittedFileUrl = submission.fileUrl;
+        const sub = submissionsList.find((s) => s.assignmentId?._id === a._id || s.assignmentId === a._id);
+        let status = "Pending", grade = null, feedback = null, submittedText = null, submittedFileUrl = null;
+        if (sub) {
+            if (sub.status === "graded") { status = "Graded"; grade = `${sub.marks}/${a.maxMarks}`; feedback = sub.feedback; }
+            else status = "Submitted";
+            submittedText = sub.submissionText; submittedFileUrl = sub.fileUrl;
         }
-
         return {
-            id: a._id,
-            title: a.title,
-            description: a.description,
+            id: a._id, title: a.title, description: a.description,
             course: a.courseId?.title || "Unknown Course",
-            dueDate: new Date(a.dueDate).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric"
-            }),
-            maxMarks: a.maxMarks,
-            status,
-            grade,
-            feedback,
-            submittedText,
-            submittedFileUrl,
+            dueDate: new Date(a.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+            maxMarks: a.maxMarks, status, grade, feedback, submittedText, submittedFileUrl,
         };
     });
 
     const renderPage = () => {
-        if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} />;
-        if (selectedCourse) return (
-            <CourseDetails
-                course={selectedCourse}
-                onBack={() => setSelectedCourse(null)}
-                onPlay={playCourse}
-                enrolledIds={enrolledIds}
-                onEnrolled={handleEnrolled}
-            />
-        );
-
+        if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} onProgressUpdate={handleProgressUpdate} />;
+        if (selectedCourse) return <CourseDetails course={selectedCourse} onBack={() => setSelectedCourse(null)} onPlay={playCourse} enrolledIds={enrolledIds} onEnrolled={handleEnrolled} />;
         switch (active) {
-            case "dashboard":   return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} assignments={mergedAssignments} />;
-            case "browse":      return <BrowseCourses enrolledIds={enrolledIds} onEnrolled={handleEnrolled} />;
-            case "enrolled":    return <EnrolledCourses enrolledCourses={enrolledCourses} openCourse={openCourse} onPlay={playCourse} loading={enrolledLoading} />;
-            case "assignments": return <Assignments assignments={mergedAssignments} loading={assignmentsLoading} onReload={fetchAssignmentsAndSubmissions} />;
-            case "quizzes":     return <Quizzes />;
-            case "certificates":return <Certificates />;
+            case "dashboard":    return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} assignments={mergedAssignments} />;
+            case "browse":       return <BrowseCourses enrolledIds={enrolledIds} onEnrolled={handleEnrolled} />;
+            case "enrolled":     return <EnrolledCourses enrolledCourses={enrolledCourses} openCourse={openCourse} onPlay={playCourse} loading={enrolledLoading} />;
+            case "assignments":  return <Assignments assignments={mergedAssignments} loading={assignmentsLoading} onReload={fetchAssignmentsAndSubmissions} />;
+            case "quizzes":      return <Quizzes />;
+            case "certificates": return <Certificates />;
             case "notifications":return <Notifications />;
-            case "reviews":     return <CourseReviews />;
-            case "discussions": return <DiscussionForum />;
-            default:            return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} />;
+            case "reviews":      return <CourseReviews />;
+            case "discussions":  return <DiscussionForum />;
+            default:             return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} />;
         }
     };
 
     return (
-        <DashboardShell
-            roleLabel="Student Panel"
-            navItems={navItems}
-            active={active}
-            onNavigate={goTo}
-            userName="Student"
-        >
+        <DashboardShell roleLabel="Student Panel" navItems={navItems} active={active} onNavigate={goTo} userName="Student">
             {!selectedCourse && !playingCourse && active !== "courseDetails" && (
                 <PageHeader title={navItems.find((n) => n.id === active)?.label || "Dashboard"} />
             )}
