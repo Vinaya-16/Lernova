@@ -17,11 +17,10 @@ import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
 import * as discussionService from "../services/discussionService.js";
-<<<<<<< HEAD
+
 import { studentService } from "../services/studentService.js";
-=======
 import * as reviewService from "../services/reviewService.js";
->>>>>>> 32e3d344596ee8658f95fbb6bbb4f5ebe41d7145
+
 import {
     quizzes as mockQuizzes, certificates, reviews, discussions,
     notifications as mockNotifications, learningStreak,
