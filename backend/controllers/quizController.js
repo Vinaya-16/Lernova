@@ -79,7 +79,7 @@ export const getStudentQuizzes = async (req, res) => {
     const studentId = req.user._id;
 
     // Find all courses the student is enrolled in
-    const enrolledCourses = await Course.find({ studentsEnrolled: studentId }).select("_id");
+    const enrolledCourses = await Course.find({ enrolledStudents: studentId }).select("_id");
     const courseIds = enrolledCourses.map((c) => c._id);
 
     // Get published quizzes for those courses

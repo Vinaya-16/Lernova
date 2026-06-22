@@ -721,6 +721,55 @@ function ManageAssignments() {
     );
 }
 
+// ── Question Builder (stable, standalone component) ──────────────────────
+function QuestionBuilder({ currentQ, setCurrentQ, handleAddQuestion, setAddingQ, setFormError, blankQuestion }) {
+    return (
+        <div className="border border-border-light rounded-xl p-5 space-y-4 bg-app">
+            <p className="text-body-lg text-text-primary font-semibold">New Question</p>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Question Text *</label>
+                <textarea rows={2} className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    value={currentQ.question}
+                    onChange={e => setCurrentQ(q => ({ ...q, question: e.target.value }))}
+                    placeholder="e.g. What is JSX?" />
+            </div>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Options (mark the correct one)</label>
+                {currentQ.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <input type="radio" name="correctOption" checked={currentQ.correctAnswer === i}
+                            onChange={() => setCurrentQ(q => ({ ...q, correctAnswer: i }))}
+                            className="accent-primary w-4 h-4 shrink-0" />
+                        <input type="text" className={`flex-1 p-2 border rounded-md text-sm ${currentQ.correctAnswer === i ? "border-primary ring-1 ring-primary" : "border-gray-300"}`}
+                            placeholder={`Option ${i + 1}`}
+                            value={opt}
+                            onChange={e => {
+                                const opts = [...currentQ.options];
+                                opts[i] = e.target.value;
+                                setCurrentQ(q => ({ ...q, options: opts }));
+                            }} />
+                        {currentQ.correctAnswer === i && (
+                            <span className="text-xs text-green-600 font-semibold shrink-0">✓ Correct</span>
+                        )}
+                    </div>
+                ))}
+            </div>
+            <div className="flex items-center gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                    <input type="number" min="1" className="w-24 p-2 border border-gray-300 rounded-md text-sm"
+                        value={currentQ.marks}
+                        onChange={e => setCurrentQ(q => ({ ...q, marks: parseInt(e.target.value) || 1 }))} />
+                </div>
+                <div className="flex gap-2 mt-5">
+                    <Button onClick={handleAddQuestion}>Add Question</Button>
+                    <Button variant="outline" onClick={() => { setAddingQ(false); setCurrentQ(blankQuestion()); setFormError(""); }}>Cancel</Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Manage Quizzes ───────────────────────────────────────────────────────
 function ManageQuizzes() {
     const [quizzes, setQuizzes] = useState([]);
@@ -836,53 +885,6 @@ function ManageQuizzes() {
         }
     };
 
-    // ── Question Builder UI ───────────────────────────────────────────
-    const QuestionBuilder = () => (
-        <div className="border border-border-light rounded-xl p-5 space-y-4 bg-app">
-            <p className="text-body-lg text-text-primary font-semibold">New Question</p>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Question Text *</label>
-                <textarea rows={2} className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    value={currentQ.question}
-                    onChange={e => setCurrentQ(q => ({ ...q, question: e.target.value }))}
-                    placeholder="e.g. What is JSX?" />
-            </div>
-            <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Options (mark the correct one)</label>
-                {currentQ.options.map((opt, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                        <input type="radio" name="correctOption" checked={currentQ.correctAnswer === i}
-                            onChange={() => setCurrentQ(q => ({ ...q, correctAnswer: i }))}
-                            className="accent-primary w-4 h-4 shrink-0" />
-                        <input type="text" className={`flex-1 p-2 border rounded-md text-sm ${currentQ.correctAnswer === i ? "border-primary ring-1 ring-primary" : "border-gray-300"}`}
-                            placeholder={`Option ${i + 1}`}
-                            value={opt}
-                            onChange={e => {
-                                const opts = [...currentQ.options];
-                                opts[i] = e.target.value;
-                                setCurrentQ(q => ({ ...q, options: opts }));
-                            }} />
-                        {currentQ.correctAnswer === i && (
-                            <span className="text-xs text-green-600 font-semibold shrink-0">✓ Correct</span>
-                        )}
-                    </div>
-                ))}
-            </div>
-            <div className="flex items-center gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
-                    <input type="number" min="1" className="w-24 p-2 border border-gray-300 rounded-md text-sm"
-                        value={currentQ.marks}
-                        onChange={e => setCurrentQ(q => ({ ...q, marks: parseInt(e.target.value) || 1 }))} />
-                </div>
-                <div className="flex gap-2 mt-5">
-                    <Button onClick={handleAddQuestion}>Add Question</Button>
-                    <Button variant="outline" onClick={() => { setAddingQ(false); setCurrentQ(blankQuestion()); setFormError(""); }}>Cancel</Button>
-                </div>
-            </div>
-        </div>
-    );
-
     // ── Create / Edit Form ────────────────────────────────────────────
     if (view === "create" || view === "edit") {
         return (
@@ -967,7 +969,16 @@ function ManageQuizzes() {
                             ))}
                         </div>
 
-                        {addingQ ? <QuestionBuilder /> : (
+                        {addingQ ? (
+                            <QuestionBuilder
+                                currentQ={currentQ}
+                                setCurrentQ={setCurrentQ}
+                                handleAddQuestion={handleAddQuestion}
+                                setAddingQ={setAddingQ}
+                                setFormError={setFormError}
+                                blankQuestion={blankQuestion}
+                            />
+                        ) : (
                             <Button variant="outline" onClick={() => { setAddingQ(true); setFormError(""); }}>
                                 <Plus size={16} /> Add Question
                             </Button>
