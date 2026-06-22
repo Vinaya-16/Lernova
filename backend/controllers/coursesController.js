@@ -1,5 +1,7 @@
 import coursesModel from "../models/coursesModel.js";
 import Student from "../models/Student.js";
+import Enrollment from "../models/Enrollment.js";
+
 
 export const createCourse = async (req, res) => {
     try {
@@ -198,10 +200,78 @@ export const enrollCourse = async (req, res) => {
             });
         }
 
+        const price = course.price || 0;
+        const isPaid = price > 0;
+
+        // Check if student is already enrolled (via Enrollment collection)
+        const existingEnrollment = await Enrollment.findOne({
+            studentId: req.user.id,
+            courseId: course._id,
+        });
+
+        if (existingEnrollment) {
+            return res.status(400).json({
+                success: false,
+                message: "You are already enrolled in this course",
+            });
+        }
+
+        let enrollmentData = {
+            studentId: req.user.id,
+            courseId: course._id,
+            price,
+            paymentStatus: isPaid ? "paid" : "free",
+        };
+
+        if (isPaid) {
+            const {
+                fullName,
+                email,
+                phoneNumber,
+                address,
+                city,
+                state,
+                zipCode,
+                paymentMethod,
+                cardholderName,
+                transactionId,
+            } = req.body;
+
+            // Simple validation of required fields
+            if (!fullName || !email || !phoneNumber || !address || !city || !state || !zipCode || !paymentMethod) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please provide all required billing and payment fields.",
+                });
+            }
+
+            enrollmentData = {
+                ...enrollmentData,
+                fullName,
+                email,
+                phoneNumber,
+                address,
+                city,
+                state,
+                zipCode,
+                paymentMethod,
+                cardholderName,
+                transactionId: transactionId || `TXN-${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+            };
+        }
+
+        // Create the enrollment document in the 'enrollment' collection
+        const enrollment = await Enrollment.create(enrollmentData);
+
         // Prevent duplicate enrolment in the course's student list
         if (!course.enrolledStudents.includes(req.user.id)) {
-            course.enrolledStudents.push(req.user.id);
-            await course.save();
+            await coursesModel.findByIdAndUpdate(
+                course._id,
+                {
+                    $addToSet: { enrolledStudents: req.user.id },
+                    $inc: { studentsEnrolled: 1 },
+                }
+            );
         }
 
         // Prevent duplicate enrolment in the student's course list
@@ -215,6 +285,7 @@ export const enrollCourse = async (req, res) => {
             success: true,
             message: "Enrolled successfully",
             courseId: course._id,
+            enrollment,
         });
     } catch (error) {
         console.error("Enroll error:", error);

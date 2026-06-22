@@ -147,9 +147,9 @@ export const courseService = {
   },
 
   // ── NEW: Enroll a student into a course ──────────────────────────────
-  enrollCourse: async (courseId) => {
+  enrollCourse: async (courseId, enrollmentData = {}) => {
     try {
-      const response = await api.post(`/courses/${courseId}/enroll`);
+      const response = await api.post(`/courses/${courseId}/enroll`, enrollmentData);
       return response.data;
     } catch (error) {
       console.error('Error enrolling in course:', error.response?.data || error.message);
