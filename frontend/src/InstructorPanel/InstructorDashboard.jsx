@@ -5,6 +5,7 @@ import { courseService } from "../services/courseService.js"
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
 import * as discussionService from "../services/discussionService.js";
+import { studentService } from "../services/studentService.js";
 import {
     LayoutDashboard,
     PlusCircle,
@@ -1138,22 +1139,119 @@ function ManageQuizzes() {
 
 // ── Student Progress Tracking ────────────────────────────────────────────
 function StudentProgress() {
+    const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [totalStudents, setTotalStudents] = useState(0);
+
+    useEffect(() => {
+        fetchStudentsProgress();
+    }, []);
+
+    const fetchStudentsProgress = async () => {
+        try {
+            setLoading(true);
+            const response = await studentService.getStudentsProgress();
+            console.log('Students progress response:', response);
+            
+            setStudents(response.students || []);
+            setTotalStudents(response.totalStudents || 0);
+            setError(null);
+        } catch (error) {
+            console.error('Error fetching students:', error);
+            setError('Failed to load student progress');
+            setStudents([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <Card className="p-8 text-center">
+                <p className="text-gray-500">Loading student progress...</p>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="p-8 text-center">
+                <p className="text-red-500">{error}</p>
+                <button 
+                    onClick={fetchStudentsProgress}
+                    className="mt-2 text-blue-500 underline hover:text-blue-700"
+                >
+                    Retry
+                </button>
+            </Card>
+        );
+    }
+
+    if (students.length === 0) {
+        return (
+            <Card className="p-8 text-center">
+                <div className="flex flex-col items-center">
+                    <Users size={48} className="text-gray-300 mb-3" />
+                    <p className="text-text-secondary mb-2">No students enrolled yet</p>
+                    <p className="text-caption text-text-secondary">
+                        Students will appear here once they enroll in your courses
+                    </p>
+                </div>
+            </Card>
+        );
+    }
+
     return (
         <Card className="overflow-x-auto">
+            <div className="p-4 border-b border-border-light">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="text-h3 text-text-primary">Student Progress</h3>
+                        <p className="text-caption text-text-secondary">
+                            {totalStudents} students enrolled in your courses
+                        </p>
+                    </div>
+                    <button 
+                        onClick={fetchStudentsProgress}
+                        className="text-caption text-primary hover:underline"
+                    >
+                        Refresh
+                    </button>
+                </div>
+            </div>
             <table className="w-full text-left text-sm min-w-[560px]">
                 <thead>
                     <tr className="text-caption text-text-secondary border-b border-border-light">
-                        <th className="py-3 pr-4">Student</th><th className="py-3 pr-4">Courses Enrolled</th>
-                        <th className="py-3 pr-4">Progress</th><th className="py-3 pr-4">Status</th>
+                        <th className="py-3 px-4">Student</th>
+                        <th className="py-3 px-4">Courses Enrolled</th>
+                        <th className="py-3 px-4">Progress</th>
+                        <th className="py-3 px-4">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {students.map((s) => (
-                        <tr key={s.id} className="border-b border-border-light last:border-0">
-                            <td className="py-3 pr-4 text-text-primary">{s.name}</td>
-                            <td className="py-3 pr-4 text-text-secondary">{s.coursesEnrolled}</td>
-                            <td className="py-3 pr-4 w-40"><ProgressBar value={(s.coursesEnrolled / 6) * 100} /></td>
-                            <td className="py-3 pr-4"><Badge tone={s.status === "Active" ? "success" : "warning"}>{s.status}</Badge></td>
+                    {students.map((student) => (
+                        <tr key={student.id} className="border-b border-border-light hover:bg-gray-50 transition-colors last:border-0">
+                            <td className="py-3 px-4">
+                                <div>
+                                    <p className="text-text-primary font-medium">{student.name}</p>
+                                    <p className="text-caption text-text-secondary">{student.email}</p>
+                                </div>
+                            </td>
+                            <td className="py-3 px-4 text-text-secondary">{student.coursesEnrolled}</td>
+                            <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                    <ProgressBar value={student.progress || 0} className="w-32" />
+                                    <span className="text-caption text-text-secondary font-medium">
+                                        {student.progress || 0}%
+                                    </span>
+                                </div>
+                            </td>
+                            <td className="py-3 px-4">
+                                <Badge tone={student.status === "Active" ? "success" : "warning"}>
+                                    {student.status}
+                                </Badge>
+                            </td>
                         </tr>
                     ))}
                 </tbody>
