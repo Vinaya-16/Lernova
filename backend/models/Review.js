@@ -1,4 +1,4 @@
-gitimport mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
   {
