@@ -9,6 +9,7 @@ import { studentService } from "../services/studentService.js";
 import {
     LayoutDashboard,
     PlusCircle,
+    X,
     BookOpen,
     Layers,
     ClipboardList,
@@ -1143,6 +1144,10 @@ function StudentProgress() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [totalStudents, setTotalStudents] = useState(0);
+    const [instructorCourses, setInstructorCourses] = useState([]);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [showStudentDetail, setShowStudentDetail] = useState(false);
+    const [detailLoading, setDetailLoading] = useState(false);
 
     useEffect(() => {
         fetchStudentsProgress();
@@ -1151,25 +1156,48 @@ function StudentProgress() {
     const fetchStudentsProgress = async () => {
         try {
             setLoading(true);
+            setError(null);
             const response = await studentService.getStudentsProgress();
             console.log('Students progress response:', response);
             
             setStudents(response.students || []);
             setTotalStudents(response.totalStudents || 0);
-            setError(null);
+            setInstructorCourses(response.instructorCourses || []);
         } catch (error) {
             console.error('Error fetching students:', error);
-            setError('Failed to load student progress');
+            setError(error.response?.data?.message || 'Failed to load student progress');
             setStudents([]);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleStudentClick = async (studentId) => {
+        try {
+            setDetailLoading(true);
+            const response = await studentService.getStudentDetailedProgress(studentId);
+            setSelectedStudent(response.student);
+            setShowStudentDetail(true);
+        } catch (error) {
+            console.error('Error fetching student details:', error);
+            alert(error.response?.data?.message || 'Failed to load student details');
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
+    const closeStudentDetail = () => {
+        setShowStudentDetail(false);
+        setSelectedStudent(null);
+    };
+
     if (loading) {
         return (
             <Card className="p-8 text-center">
-                <p className="text-gray-500">Loading student progress...</p>
+                <div className="flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+                    <p className="text-gray-500">Loading student progress...</p>
+                </div>
             </Card>
         );
     }
@@ -1177,13 +1205,16 @@ function StudentProgress() {
     if (error) {
         return (
             <Card className="p-8 text-center">
-                <p className="text-red-500">{error}</p>
-                <button 
-                    onClick={fetchStudentsProgress}
-                    className="mt-2 text-blue-500 underline hover:text-blue-700"
-                >
-                    Retry
-                </button>
+                <div className="flex flex-col items-center">
+                    <div className="text-red-500 text-4xl mb-3">⚠️</div>
+                    <p className="text-red-500 mb-4">{error}</p>
+                    <button 
+                        onClick={fetchStudentsProgress}
+                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                    >
+                        Try Again
+                    </button>
+                </div>
             </Card>
         );
     }
@@ -1193,9 +1224,10 @@ function StudentProgress() {
             <Card className="p-8 text-center">
                 <div className="flex flex-col items-center">
                     <Users size={48} className="text-gray-300 mb-3" />
-                    <p className="text-text-secondary mb-2">No students enrolled yet</p>
-                    <p className="text-caption text-text-secondary">
-                        Students will appear here once they enroll in your courses
+                    <p className="text-text-secondary text-lg mb-2">No students enrolled yet</p>
+                    <p className="text-caption text-text-secondary max-w-md">
+                        Students will appear here once they enroll in your courses. 
+                        Share your courses with students to start tracking their progress.
                     </p>
                 </div>
             </Card>
@@ -1203,60 +1235,225 @@ function StudentProgress() {
     }
 
     return (
-        <Card className="overflow-x-auto">
-            <div className="p-4 border-b border-border-light">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h3 className="text-h3 text-text-primary">Student Progress</h3>
-                        <p className="text-caption text-text-secondary">
-                            {totalStudents} students enrolled in your courses
-                        </p>
+        <>
+            <Card className="overflow-x-auto">
+                <div className="p-4 border-b border-border-light bg-gray-50/50">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                            <h3 className="text-h3 text-text-primary flex items-center gap-2">
+                                Student Progress
+                                <Badge tone="info" className="ml-2">{totalStudents}</Badge>
+                            </h3>
+                            <p className="text-caption text-text-secondary mt-1">
+                                Track student engagement and learning progress across your courses
+                            </p>
+                            {instructorCourses.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    <span className="text-xs text-text-secondary">Courses:</span>
+                                    {instructorCourses.map((c, index) => (
+                                        <span key={c.id} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                            {c.title}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <button 
+                            onClick={fetchStudentsProgress}
+                            className="text-caption text-primary hover:underline flex items-center gap-1"
+                            disabled={loading}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Refresh
+                        </button>
                     </div>
-                    <button 
-                        onClick={fetchStudentsProgress}
-                        className="text-caption text-primary hover:underline"
-                    >
-                        Refresh
-                    </button>
                 </div>
-            </div>
-            <table className="w-full text-left text-sm min-w-[560px]">
-                <thead>
-                    <tr className="text-caption text-text-secondary border-b border-border-light">
-                        <th className="py-3 px-4">Student</th>
-                        <th className="py-3 px-4">Courses Enrolled</th>
-                        <th className="py-3 px-4">Progress</th>
-                        <th className="py-3 px-4">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {students.map((student) => (
-                        <tr key={student.id} className="border-b border-border-light hover:bg-gray-50 transition-colors last:border-0">
-                            <td className="py-3 px-4">
-                                <div>
-                                    <p className="text-text-primary font-medium">{student.name}</p>
-                                    <p className="text-caption text-text-secondary">{student.email}</p>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead>
+                            <tr className="text-caption text-text-secondary border-b border-border-light bg-gray-50/30">
+                                <th className="py-3 px-4 font-semibold">Student</th>
+                                <th className="py-3 px-4 font-semibold">Courses Enrolled</th>
+                                <th className="py-3 px-4 font-semibold">Progress</th>
+                                <th className="py-3 px-4 font-semibold">Status</th>
+                                <th className="py-3 px-4 font-semibold text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {students.map((student, index) => (
+                                <tr key={student.id} className={`border-b border-border-light hover:bg-gray-50/50 transition-colors ${index === students.length - 1 ? 'last:border-0' : ''}`}>
+                                    <td className="py-3 px-4">
+                                        <div>
+                                            <p className="text-text-primary font-medium">{student.name}</p>
+                                            <p className="text-caption text-text-secondary">{student.email}</p>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <span className="text-text-secondary font-medium">{student.coursesEnrolled}</span>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-3 min-w-[120px]">
+                                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-primary rounded-full transition-all duration-500"
+                                                    style={{ width: `${student.progress || 0}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-caption text-text-secondary font-medium min-w-[40px] text-right">
+                                                {student.progress || 0}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <Badge tone={
+                                            student.status === "Completed" ? "success" : 
+                                            student.status === "In Progress" ? "warning" : 
+                                            student.status === "Inactive" ? "danger" : "secondary"
+                                        }>
+                                            {student.status || 'Not Started'}
+                                        </Badge>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex justify-center">
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                onClick={() => handleStudentClick(student.id)}
+                                                className="hover:bg-primary hover:text-white transition-colors"
+                                            >
+                                                <Eye size={14} className="mr-1" />
+                                                View Details
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="p-4 border-t border-border-light bg-gray-50/50">
+                    <p className="text-caption text-text-secondary">
+                        Showing {students.length} of {totalStudents} students
+                    </p>
+                </div>
+            </Card>
+
+            {/* Student Detail Modal */}
+            {showStudentDetail && selectedStudent && (
+                <div 
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={closeStudentDetail}
+                >
+                    <div 
+                        className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="sticky top-0 bg-white border-b border-border-light p-4 flex justify-between items-center z-10 rounded-t-xl">
+                            <div>
+                                <h3 className="text-xl font-semibold text-text-primary">{selectedStudent.name}</h3>
+                                <p className="text-sm text-text-secondary">{selectedStudent.email}</p>
+                            </div>
+                            <button 
+                                onClick={closeStudentDetail}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6">
+                            {detailLoading ? (
+                                <div className="flex justify-center items-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                                 </div>
-                            </td>
-                            <td className="py-3 px-4 text-text-secondary">{student.coursesEnrolled}</td>
-                            <td className="py-3 px-4">
-                                <div className="flex items-center gap-3">
-                                    <ProgressBar value={student.progress || 0} className="w-32" />
-                                    <span className="text-caption text-text-secondary font-medium">
-                                        {student.progress || 0}%
-                                    </span>
-                                </div>
-                            </td>
-                            <td className="py-3 px-4">
-                                <Badge tone={student.status === "Active" ? "success" : "warning"}>
-                                    {student.status}
-                                </Badge>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </Card>
+                            ) : (
+                                <>
+                                    {/* Summary Cards */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <div className="bg-blue-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-blue-600">Courses Enrolled</p>
+                                            <p className="text-2xl font-bold text-blue-700">{selectedStudent.coursesEnrolled || 0}</p>
+                                        </div>
+                                        <div className="bg-green-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-green-600">Completed</p>
+                                            <p className="text-2xl font-bold text-green-700">{selectedStudent.completedCourses || 0}</p>
+                                        </div>
+                                        <div className="bg-purple-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-purple-600">Overall Progress</p>
+                                            <p className="text-2xl font-bold text-purple-700">{selectedStudent.progress || 0}%</p>
+                                        </div>
+                                        <div className="bg-orange-50 p-4 rounded-lg text-center">
+                                            <p className="text-sm text-orange-600">Watch Time</p>
+                                            <p className="text-2xl font-bold text-orange-700">
+                                                {Math.floor((selectedStudent.totalWatchTime || 0) / 60)}m
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Course Progress */}
+                                    <h4 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
+                                        <BookOpen size={18} />
+                                        Course Progress Details
+                                    </h4>
+
+                                    {selectedStudent.courseProgress?.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {selectedStudent.courseProgress.map((course) => (
+                                                <div key={course.courseId} className="border border-border-light rounded-lg p-4 hover:bg-gray-50/50 transition-colors">
+                                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                                        <div className="flex-1">
+                                                            <p className="font-medium text-text-primary">{course.title}</p>
+                                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                                <span className="text-xs text-text-secondary">{course.category || 'General'}</span>
+                                                                <span className="text-xs text-text-secondary">•</span>
+                                                                <span className="text-xs text-text-secondary">{course.complexity || 'Beginner'}</span>
+                                                            </div>
+                                                        </div>
+                                                        <Badge tone={course.status === "Completed" ? "success" : "warning"}>
+                                                            {course.status || 'In Progress'}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 mt-3">
+                                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className="h-full bg-primary rounded-full transition-all duration-500"
+                                                                style={{ width: `${course.progress || 0}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm text-text-secondary font-medium min-w-[40px] text-right">
+                                                            {course.progress || 0}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <p className="text-xs text-text-secondary">
+                                                            {course.completedVideos || 0} / {course.totalVideos || 0} videos completed
+                                                        </p>
+                                                        <p className="text-xs text-text-secondary">
+                                                            {course.totalWatchTime ? `${Math.floor(course.totalWatchTime / 60)}m watched` : 'Not started'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-text-secondary">
+                                            <BookOpen size={32} className="mx-auto text-gray-300 mb-2" />
+                                            <p>No course progress data available</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
