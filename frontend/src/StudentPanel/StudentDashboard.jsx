@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Compass, BookOpen, PlayCircle, ClipboardList,
     HelpCircle, Award, Bell, MessageSquare, Star, Search, Flame,
     CheckCircle2, Clock, ChevronLeft, FileText, StickyNote, Paperclip,
-    X, Megaphone, Globe, BarChart3,
+    X, Megaphone, Globe, BarChart3, ChevronRight,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import Illustration from "../components/Illustration";
@@ -15,8 +15,9 @@ import certificatesWebp from "../assets/illustrations/certificates.webp";
 import { courseService } from "../services/courseService.js";
 import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
+import { quizService } from "../services/quizService.js";
 import {
-    quizzes, certificates, reviews, discussions,
+    quizzes as mockQuizzes, certificates, reviews, discussions,
     notifications as mockNotifications, learningStreak,
 } from "../mockData/lmsData";
 
@@ -301,7 +302,7 @@ function CourseDetails({ course, onBack, onPlay, enrolledIds, onEnrolled }) {
     );
 }
 
-// ── My Courses — instructor-style horizontal cards ────────────────────────
+// ── My Courses ────────────────────────────────────────────────────────────
 function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
     if (loading) return <p className="text-body text-text-secondary">Loading your courses…</p>;
     if (enrolledCourses.length === 0) return (
@@ -319,38 +320,23 @@ function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
                 const statusLabel = prog === 100 ? "Completed" : prog > 0 ? "In Progress" : "Not Started";
                 return (
                     <Card key={c._id || c.id} className="flex items-center gap-4 flex-wrap">
-                        {/* Thumbnail */}
-                        <img
-                            src={c.image || "/placeholder-course.jpg"} alt={c.title}
+                        <img src={c.image || "/placeholder-course.jpg"} alt={c.title}
                             className="w-24 object-cover rounded-xl cursor-pointer shrink-0"
-                            style={{ height: "72px" }}
-                            onClick={() => openCourse(c)}
-                        />
-
-                        {/* Info block */}
+                            style={{ height: "72px" }} onClick={() => openCourse(c)} />
                         <div className="flex-1 min-w-[180px]">
-                            <p className="text-body-lg text-text-primary cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => openCourse(c)}>{c.title}</p>
-                            <p className="text-caption text-text-secondary mt-0.5">
-                                {c.category} · {c.instructorName?.name || "Instructor"}
-                            </p>
-                            {/* Meta */}
+                            <p className="text-body-lg text-text-primary cursor-pointer hover:text-primary transition-colors" onClick={() => openCourse(c)}>{c.title}</p>
+                            <p className="text-caption text-text-secondary mt-0.5">{c.category} · {c.instructorName?.name || "Instructor"}</p>
                             <div className="flex items-center gap-3 mt-1 flex-wrap">
                                 {c.complexity && <span className="flex items-center gap-1 text-caption text-text-secondary"><BarChart3 size={12} />{c.complexity}</span>}
                                 {c.language && <span className="flex items-center gap-1 text-caption text-text-secondary"><Globe size={12} />{c.language}</span>}
                                 {c.videos?.length > 0 && <span className="flex items-center gap-1 text-caption text-text-secondary"><PlayCircle size={12} />{c.videos.length} video{c.videos.length !== 1 ? "s" : ""}</span>}
                             </div>
-                            {/* Progress */}
                             <div className="mt-2 max-w-xs">
                                 <ProgressBar value={prog} />
                                 <p className="text-caption text-text-secondary mt-1">{prog}% complete</p>
                             </div>
                         </div>
-
-                        {/* Status */}
                         <Badge tone={statusTone}>{statusLabel}</Badge>
-
-                        {/* CTA */}
                         <Button className="h-9 px-4 shrink-0" onClick={() => onPlay(c)}>
                             <PlayCircle size={16} />{prog > 0 ? "Resume" : "Start"}
                         </Button>
@@ -361,7 +347,7 @@ function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
     );
 }
 
-// ── Course Player — real video progress tracking ──────────────────────────
+// ── Course Player ─────────────────────────────────────────────────────────
 function CoursePlayer({ course, onBack, onProgressUpdate }) {
     const [tab, setTab] = useState("notes");
     const videos = course.videos || [];
@@ -371,7 +357,6 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
 
     const progress = videos.length > 0 ? Math.round((completedIds.size / videos.length) * 100) : 0;
 
-    // Mark video complete once 90% watched
     const handleTimeUpdate = () => {
         const vid = videoRef.current;
         if (!vid || !activeVideo) return;
@@ -387,7 +372,6 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
         }
     };
 
-    // Auto-advance to next video on end
     const handleEnded = () => {
         if (!activeVideo) return;
         const idx = videos.findIndex((v) => v._id === activeVideo._id);
@@ -416,7 +400,6 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                             <p className="text-caption text-text-secondary mt-1">{course.title}</p>
                         </div>
                     </Card>
-
                     <Card>
                         <div className="flex gap-2 border-b border-border-light pb-2 mb-4">
                             {[{ id: "notes", label: "Notes", icon: StickyNote }, { id: "resources", label: "Resources", icon: Paperclip }, { id: "discussion", label: "Discussion", icon: MessageSquare }].map((t) => (
@@ -436,14 +419,11 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                         {tab === "discussion" && <EmptyState icon={MessageSquare} title="No discussion yet" sub="Be the first to ask a question." />}
                     </Card>
                 </div>
-
-                {/* Sidebar with live progress */}
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-1">Course Videos</h3>
                     <p className="text-caption text-text-secondary mb-3">{completedIds.size} / {videos.length} watched</p>
                     <ProgressBar value={progress} />
                     <p className="text-caption text-text-secondary mt-1 mb-4">{progress}% complete</p>
-
                     {videos.length === 0 ? <p className="text-caption text-text-secondary">No videos uploaded yet.</p> : (
                         <div className="space-y-1 max-h-96 overflow-y-auto">
                             {videos.map((v) => {
@@ -453,9 +433,7 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                                     <button key={v._id} onClick={() => setActiveVideo(v)}
                                         className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-lg text-body transition-colors ${isActive ? "bg-active-bg text-primary" : "hover:bg-app text-text-primary"}`}>
                                         <span className="flex items-center gap-2">
-                                            {isDone
-                                                ? <CheckCircle2 size={15} className="text-success shrink-0" />
-                                                : <PlayCircle size={15} className="shrink-0" />}
+                                            {isDone ? <CheckCircle2 size={15} className="text-success shrink-0" /> : <PlayCircle size={15} className="shrink-0" />}
                                             <span className="line-clamp-1">{v.title}</span>
                                         </span>
                                         <span className="text-caption text-text-secondary shrink-0 ml-2">{v.duration}</span>
@@ -563,26 +541,297 @@ function Assignments({ assignments = [], loading, onReload }) {
     );
 }
 
-// ── Quizzes ───────────────────────────────────────────────────────────────
-function Quizzes() {
+// ── Quiz Taking Modal ─────────────────────────────────────────────────────
+function QuizModal({ quiz, onClose, onSubmitted }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [answers, setAnswers] = useState({}); // { questionIndex: selectedOption }
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+
+    const questions = quiz.questions || [];
+    const currentQ = questions[currentIndex];
+    const isLast = currentIndex === questions.length - 1;
+    const allAnswered = questions.every((_, i) => answers[i] !== undefined);
+
+    const handleSelect = (optionIndex) => {
+        setAnswers(prev => ({ ...prev, [currentIndex]: optionIndex }));
+    };
+
+    const handleSubmit = async () => {
+        if (!allAnswered) { setError("Please answer all questions before submitting."); return; }
+        setSubmitting(true); setError("");
+        try {
+            const payload = {
+                answers: Object.entries(answers).map(([questionIndex, selectedOption]) => ({
+                    questionIndex: parseInt(questionIndex),
+                    selectedOption,
+                })),
+            };
+            const res = await quizService.submitQuiz(quiz._id, payload);
+            onSubmitted(res);
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to submit quiz.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
-        <div className="grid sm:grid-cols-2 gap-5">
-            {quizzes.map((q) => (
-                <Card key={q.id}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center"><HelpCircle size={20} /></div>
-                        <Badge tone={q.status === "Completed" ? "success" : "warning"}>{q.status}</Badge>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="bg-primary-gradient text-white p-5 flex items-center justify-between shrink-0">
+                    <div>
+                        <h3 className="text-h3 text-white">{quiz.title}</h3>
+                        <p className="text-caption text-white/80 mt-0.5">
+                            Question {currentIndex + 1} of {questions.length} · {quiz.duration} min
+                        </p>
                     </div>
-                    <p className="text-body-lg text-text-primary">{q.title}</p>
-                    <p className="text-caption text-text-secondary mb-3">{q.course}</p>
-                    <div className="flex items-center justify-between text-caption text-text-secondary">
-                        <span>{q.questions} questions · {q.duration}</span>
-                        {q.score && <span className="font-semibold text-success">{q.score}</span>}
+                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-1.5 bg-gray-100 shrink-0">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }} />
+                </div>
+
+                {/* Question */}
+                <div className="p-6 flex-1 overflow-y-auto">
+                    {error && <p className="text-sm text-red-500 bg-red-50 p-3 rounded-xl mb-4">{error}</p>}
+                    <p className="text-body-lg text-text-primary font-semibold mb-5">
+                        {currentQ?.question}
+                    </p>
+                    <div className="space-y-3">
+                        {(currentQ?.options || []).map((opt, i) => {
+                            const selected = answers[currentIndex] === i;
+                            return (
+                                <button key={i} onClick={() => handleSelect(i)}
+                                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-body ${
+                                        selected
+                                            ? "border-primary bg-active-bg text-primary font-semibold"
+                                            : "border-border-light text-text-primary hover:border-primary/40 hover:bg-app"
+                                    }`}>
+                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border text-xs font-bold mr-3 ${
+                                        selected ? "border-primary bg-primary text-white" : "border-gray-300 text-text-secondary"
+                                    }`}>
+                                        {String.fromCharCode(65 + i)}
+                                    </span>
+                                    {opt}
+                                </button>
+                            );
+                        })}
                     </div>
-                    {q.status === "Pending" && <Button className="mt-4 h-9 px-4" full>Start Quiz</Button>}
-                </Card>
-            ))}
+                </div>
+
+                {/* Footer */}
+                <div className="p-5 border-t border-border-light flex items-center justify-between gap-3 shrink-0 bg-white">
+                    <Button variant="outline" onClick={() => setCurrentIndex(i => Math.max(0, i - 1))} disabled={currentIndex === 0}>
+                        <ChevronLeft size={16} /> Previous
+                    </Button>
+                    <span className="text-caption text-text-secondary">
+                        {Object.keys(answers).length} / {questions.length} answered
+                    </span>
+                    {isLast ? (
+                        <Button onClick={handleSubmit} disabled={submitting || !allAnswered}>
+                            {submitting ? "Submitting…" : "Submit Quiz"}
+                        </Button>
+                    ) : (
+                        <Button onClick={() => setCurrentIndex(i => Math.min(questions.length - 1, i + 1))}>
+                            Next <ChevronRight size={16} />
+                        </Button>
+                    )}
+                </div>
+            </div>
         </div>
+    );
+}
+
+// ── Quiz Result Modal ─────────────────────────────────────────────────────
+function QuizResultModal({ result, quiz, onClose }) {
+    const { score, totalMarks, answers: studentAnswers = [] } = result;
+    const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+    const questions = quiz?.questions || [];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className={`p-6 text-white shrink-0 ${percentage >= 60 ? "bg-green-500" : "bg-red-400"}`}>
+                    <div className="text-center">
+                        <p className="text-4xl font-bold">{score} / {totalMarks}</p>
+                        <p className="text-lg mt-1 font-medium">{percentage}% — {percentage >= 60 ? "Passed 🎉" : "Needs Improvement"}</p>
+                        <p className="text-sm text-white/80 mt-1">{quiz?.title}</p>
+                    </div>
+                </div>
+
+                {/* Answer Review */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <p className="text-body-lg text-text-primary font-semibold">Answer Review</p>
+                    {questions.map((q, idx) => {
+                        const studentAns = studentAnswers.find(a => a.questionIndex === idx);
+                        const selected = studentAns?.selectedOption;
+                        const isCorrect = selected === q.correctAnswer;
+                        return (
+                            <div key={idx} className={`border-2 rounded-xl p-4 ${isCorrect ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+                                <p className="text-body text-text-primary font-medium mb-3">Q{idx + 1}. {q.question}</p>
+                                <div className="space-y-2">
+                                    {q.options.map((opt, oi) => {
+                                        const isSelected = oi === selected;
+                                        const isAnswer = oi === q.correctAnswer;
+                                        let cls = "text-text-secondary border-gray-200 bg-white";
+                                        if (isAnswer) cls = "text-green-700 border-green-400 bg-green-50 font-semibold";
+                                        if (isSelected && !isAnswer) cls = "text-red-700 border-red-400 bg-red-50 line-through";
+                                        return (
+                                            <div key={oi} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${cls}`}>
+                                                <span className="w-5 h-5 rounded-full border flex items-center justify-center text-xs shrink-0">
+                                                    {String.fromCharCode(65 + oi)}
+                                                </span>
+                                                {opt}
+                                                {isAnswer && <span className="ml-auto text-green-600 text-xs font-bold">✓ Correct</span>}
+                                                {isSelected && !isAnswer && <span className="ml-auto text-red-600 text-xs font-bold">✗ Your answer</span>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-caption text-text-secondary mt-2">{q.marks} mark{q.marks !== 1 ? "s" : ""}</p>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="p-5 border-t border-border-light shrink-0">
+                    <Button full onClick={onClose}>Close</Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Quizzes (API-driven) ──────────────────────────────────────────────────
+function Quizzes() {
+    const [quizzes, setQuizzes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    // Active quiz taking
+    const [takingQuiz, setTakingQuiz] = useState(null);
+
+    // Result display
+    const [result, setResult] = useState(null); // { score, totalMarks, answers, quiz }
+    const [showResult, setShowResult] = useState(false);
+
+    const fetchQuizzes = async () => {
+        try {
+            setLoading(true);
+            const res = await quizService.getStudentQuizzes();
+            setQuizzes(res.quizzes || []);
+        } catch (err) {
+            console.error("Failed to fetch quizzes:", err);
+            setError("Failed to load quizzes. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchQuizzes(); }, []);
+
+    const handleSubmitted = (submissionResult) => {
+        // submissionResult = { score, totalMarks, quiz (from attempt) }
+        // We need the full quiz with correctAnswers — fetch result
+        loadResult(takingQuiz, submissionResult);
+        setTakingQuiz(null);
+        fetchQuizzes(); // refresh to update attempted/score
+    };
+
+    const loadResult = async (quiz, submissionResult) => {
+        try {
+            const res = await quizService.getQuizResult(quiz._id);
+            setResult({ ...res, quizData: res.quiz });
+            setShowResult(true);
+        } catch {
+            // Fallback: show what we have from submission
+            setResult({ ...submissionResult, quizData: quiz });
+            setShowResult(true);
+        }
+    };
+
+    const handleViewResult = async (quiz) => {
+        await loadResult(quiz, {});
+    };
+
+    if (loading) return <p className="text-body text-text-secondary">Loading quizzes…</p>;
+
+    return (
+        <>
+            {takingQuiz && (
+                <QuizModal
+                    quiz={takingQuiz}
+                    onClose={() => setTakingQuiz(null)}
+                    onSubmitted={handleSubmitted}
+                />
+            )}
+            {showResult && result && (
+                <QuizResultModal
+                    result={result}
+                    quiz={result.quizData}
+                    onClose={() => { setShowResult(false); setResult(null); }}
+                />
+            )}
+
+            {error && (
+                <div className="text-red-600 bg-red-50 border border-red-200 p-4 rounded-xl mb-4">
+                    {error} <button onClick={fetchQuizzes} className="ml-3 text-blue-600 underline">Retry</button>
+                </div>
+            )}
+
+            {quizzes.length === 0 && !error ? (
+                <div className="flex flex-col items-center text-center py-12">
+                    <HelpCircle size={40} className="text-text-secondary mb-3" />
+                    <p className="text-h3 text-text-primary">No quizzes yet</p>
+                    <p className="text-body text-text-secondary mt-1 max-w-sm">Quizzes from your enrolled courses will appear here once published by your instructor.</p>
+                </div>
+            ) : (
+                <div className="grid sm:grid-cols-2 gap-5">
+                    {quizzes.map((q) => (
+                        <Card key={q._id}>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center">
+                                    <HelpCircle size={20} />
+                                </div>
+                                <Badge tone={q.attempted ? "success" : "warning"}>
+                                    {q.attempted ? "Attempted" : "Pending"}
+                                </Badge>
+                            </div>
+                            <p className="text-body-lg text-text-primary">{q.title}</p>
+                            <p className="text-caption text-text-secondary mb-1">{q.courseId?.title || "Course"}</p>
+                            {q.description && <p className="text-caption text-text-secondary mb-2 line-clamp-2">{q.description}</p>}
+                            <div className="flex items-center justify-between text-caption text-text-secondary mt-2">
+                                <span>{q.questions?.length || 0} questions · {q.duration} min</span>
+                                {q.attempted && q.score !== null && (
+                                    <span className="font-semibold text-success">
+                                        Score: {q.score} / {q.totalMarks}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                                {!q.attempted ? (
+                                    <Button full className="h-9" onClick={() => setTakingQuiz(q)}>
+                                        Start Quiz
+                                    </Button>
+                                ) : (
+                                    <Button full variant="outline" className="h-9" onClick={() => handleViewResult(q)}>
+                                        View Result
+                                    </Button>
+                                )}
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
+        </>
     );
 }
 
@@ -755,7 +1004,6 @@ export default function StudentDashboard() {
         fetchAssignmentsAndSubmissions();
     };
 
-    // Live progress update from CoursePlayer — no API call needed, just local state
     const handleProgressUpdate = (courseId, newProgress) => {
         setEnrolledCourses((prev) => prev.map((c) => c._id === courseId ? { ...c, progress: newProgress } : c));
         setPlayingCourse((prev) => prev ? { ...prev, progress: newProgress } : prev);

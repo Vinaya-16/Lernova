@@ -21,7 +21,7 @@ export default function LMS() {
 
                 <nav className="relative z-10 w-full px-6 sm:px-16 py-7 flex items-center justify-between">
                     <span className="text-xl font-extrabold bg-primary-gradient bg-clip-text text-transparent">
-                        Skillio
+                        Lernova
                     </span>
                     <ul className="hidden md:flex gap-10 list-none m-0 p-0">
                         {NAV_LINKS.map((l) => (
@@ -50,7 +50,7 @@ export default function LMS() {
                                 Online
                             </h1>
                             <p className="text-body-lg text-text-secondary max-w-md mb-9 leading-relaxed">
-                                Skillio helps instructors create engaging courses while making it easy for students to learn, track progress, and earn certificates.
+                                Lernova helps instructors create engaging courses while making it easy for students to learn, track progress, and earn certificates.
                             </p>
                             <div className="flex flex-wrap gap-3 items-center">
                                 <Button onClick={() => navigate("/courses")} className="h-12 px-7">
@@ -112,7 +112,7 @@ export default function LMS() {
             <footer className="bg-gray-900 text-gray-400">
                 <div className="px-6 sm:px-16 py-9 flex flex-wrap items-center justify-between gap-5">
                     <div>
-                        <p className="font-bold text-base mb-0.5 bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">Skillio</p>
+                        <p className="font-bold text-base mb-0.5 bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">Lernova</p>
                         <p className="text-caption">Making learning accessible to everyone.</p>
                     </div>
                     <ul className="flex gap-7 list-none m-0 p-0">
@@ -122,7 +122,7 @@ export default function LMS() {
                             </li>
                         ))}
                     </ul>
-                    <p className="text-caption text-gray-500">© 2026 Skillio. All rights reserved.</p>
+                    <p className="text-caption text-gray-500">© 2026 Lernova. All rights reserved.</p>
                 </div>
             </footer>
         </div>

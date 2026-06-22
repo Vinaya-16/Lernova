@@ -9,6 +9,7 @@ import instructorRoutes from "./routes/instructorRoutes.js";
 import assignementRoute from "./routes/assignmentRoute.js";
 import submissionRoute from "./routes/submissionRoute.js";
 import announcementRoute from "./routes/announcementRoute.js";
+import quizRoute from "./routes/quizRoute.js";
 
 // Set DNS resolution order to ipv4first and set public DNS servers to avoid querySrv ECONNREFUSED on Windows
 dns.setDefaultResultOrder("ipv4first");
@@ -40,6 +41,7 @@ app.use("/api/instructors", instructorRoutes);
 app.use("/api/assignments", assignementRoute);
 app.use("/api/submissions", submissionRoute);
 app.use("/api/announcements", announcementRoute);
+app.use("/api/quizzes", quizRoute);
 
 // Root route
 app.get("/", (req, res) => {

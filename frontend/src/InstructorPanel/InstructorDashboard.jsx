@@ -3,6 +3,7 @@ import { assignmentService } from "../services/assignmentSubmission.js";
 import axios from "axios";
 import { courseService } from "../services/courseService.js"
 import * as announcementService from "../services/announcementService.js";
+import { quizService } from "../services/quizService.js";
 import {
     LayoutDashboard,
     PlusCircle,
@@ -24,7 +25,9 @@ import {
     CheckCircle,
     XCircle,
     Clock,
-    Plus
+    Plus,
+    ChevronRight,
+    ChevronDown,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState } from "../components/ui";
@@ -32,7 +35,7 @@ import {
     courses as allCourses,
     students,
     assignments,
-    quizzes,
+    quizzes as mockQuizzes,
     reviews,
 } from "../mockData/lmsData";
 
@@ -54,7 +57,6 @@ function Dashboard() {
     const totalStudents = myCourses.reduce((sum, c) => sum + c.students, 0);
     const avgCompletion = Math.round(myCourses.reduce((sum, c) => sum + c.progress, 0) / myCourses.length);
 
-    // Fetch real announcements for the overview card
     const [recentAnnouncements, setRecentAnnouncements] = useState([]);
     const [announcementsLoading, setAnnouncementsLoading] = useState(true);
 
@@ -86,7 +88,7 @@ function Dashboard() {
                 <Card className="lg:col-span-2">
                     <h3 className="text-h3 text-text-primary mb-4">Quiz Statistics</h3>
                     <div className="space-y-3">
-                        {quizzes.map((q) => (
+                        {mockQuizzes.map((q) => (
                             <div key={q.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
                                 <div>
                                     <p className="text-body text-text-primary">{q.title}</p>
@@ -140,51 +142,23 @@ function CreateCourse({ onCreated }) {
 
         try {
             const categoryMap = [
-                "Web Development",
-                "Mobile Development",
-                "Programming",
-                "Data Science",
-                "Artificial Intelligence",
-                "Cyber Security",
-                "Cloud Computing",
-                "DevOps",
-                "UI/UX Design",
-                "Graphic Design",
-                "Digital Marketing",
-                "Business",
-                "Finance",
-                "Photography",
-                "Personal Development"
+                "Web Development", "Mobile Development", "Programming", "Data Science",
+                "Artificial Intelligence", "Cyber Security", "Cloud Computing", "DevOps",
+                "UI/UX Design", "Graphic Design", "Digital Marketing", "Business",
+                "Finance", "Photography", "Personal Development"
             ];
 
             const courseData = {
-                title,
-                category: categoryMap[category] || category,
-                description,
-                price: parseFloat(price) || 0,
-                image,
-                language,
-                complexity,
-                duration,
+                title, category: categoryMap[category] || category, description,
+                price: parseFloat(price) || 0, image, language, complexity, duration,
             };
 
             const response = await courseService.createCourse(courseData);
+            setTitle(""); setCategory("Web Development"); setDescription("");
+            setPrice(""); setImage(""); setLanguage("English");
+            setComplexity("Beginner"); setDuration("8 weeks");
 
-            console.log("Course created: ", response);
-
-            setTitle("");
-            setCategory("Web Development");
-            setDescription("");
-            setPrice("");
-            setImage("");
-            setLanguage("English");
-            setComplexity("Beginner");
-            setDuration("8 weeks");
-
-            if (onCreated) {
-                onCreated(response.course);
-            }
-
+            if (onCreated) onCreated(response.course);
             alert("Course created successfully! Waiting for approval");
         } catch (error) {
             console.error("failed to create course: ", error);
@@ -196,73 +170,27 @@ function CreateCourse({ onCreated }) {
     return (
         <Card className="max-w-2xl">
             <form onSubmit={submit}>
-                <Input
-                    label="Course Title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Advanced React Patterns"
-                    required
-                />
-                <Input
-                    label="Category"
-                    as="select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                >
+                <Input label="Course Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Advanced React Patterns" required />
+                <Input label="Category" as="select" value={category} onChange={(e) => setCategory(e.target.value)}>
                     {["Web Development", "Design", "Data Science", "Marketing", "Photography", "Business"].map((c) => (
                         <option key={c} value={c}>{c}</option>
                     ))}
                 </Input>
-                <Input
-                    label="Description"
-                    as="textarea"
-                    rows={4}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What will students learn?"
-                />
-                <Input
-                    label="Price (USD)"
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="49"
-                />
-                <Input
-                    label="Course Thumbnail URL (Optional)"
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                    placeholder="https://example.com/course-image.jpg"
-                />
-                <Input
-                    label="Language"
-                    as="select"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                >
+                <Input label="Description" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will students learn?" />
+                <Input label="Price (USD)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="49" />
+                <Input label="Course Thumbnail URL (Optional)" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://example.com/course-image.jpg" />
+                <Input label="Language" as="select" value={language} onChange={(e) => setLanguage(e.target.value)}>
                     <option value="English">English</option>
                     <option value="Hindi">Hindi</option>
                     <option value="Marathi">Marathi</option>
                 </Input>
-                <Input
-                    label="Complexity"
-                    as="select"
-                    value={complexity}
-                    onChange={(e) => setComplexity(e.target.value)}
-                >
+                <Input label="Complexity" as="select" value={complexity} onChange={(e) => setComplexity(e.target.value)}>
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                 </Input>
-                <Input
-                    label="Duration"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="e.g. 8 weeks"
-                />
-                <Button type="submit" full disabled={loading}>
-                    {loading ? "Creating..." : "Create Course (Draft)"}
-                </Button>
+                <Input label="Duration" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 8 weeks" />
+                <Button type="submit" full disabled={loading}>{loading ? "Creating..." : "Create Course (Draft)"}</Button>
             </form>
         </Card>
     );
@@ -288,24 +216,19 @@ function VideoUploader({ courseId }) {
                 setLoadingVideos(false);
             }
         };
-
         fetchVideos();
     }, [courseId]);
 
     const handleUpload = async () => {
         if (!file) return alert("Please select a video first");
-
         const formData = new FormData();
         formData.append("video", file);
         formData.append("title", title || file.name);
-
         try {
             setUploading(true);
             const data = await courseService.uploadVideo(courseId, formData, setProgress);
             setVideos((prev) => [...prev, data.video]);
-            setFile(null);
-            setTitle("");
-            setProgress(0);
+            setFile(null); setTitle(""); setProgress(0);
         } catch (err) {
             console.error("Upload failed:", err);
             alert("Upload failed. Please try again.");
@@ -316,7 +239,6 @@ function VideoUploader({ courseId }) {
 
     const handleDelete = async (videoId) => {
         if (!window.confirm("Delete this video?")) return;
-
         try {
             await courseService.deleteVideo(courseId, videoId);
             setVideos((prev) => prev.filter((v) => v._id !== videoId));
@@ -328,54 +250,23 @@ function VideoUploader({ courseId }) {
 
     return (
         <div className="space-y-6">
-            {/* Upload Section */}
             <div className="border-2 border-dashed border-border-light rounded-2xl p-8 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                     <FileVideo size={20} className="text-primary" />
                     <p className="text-body-lg text-text-primary font-medium">Upload a Video</p>
                 </div>
-
-                <Input
-                    label="Video Title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Lesson 1 - Introduction"
-                />
-
+                <Input label="Video Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lesson 1 - Introduction" />
                 <div>
-                    <label className="block mb-1 text-sm font-medium text-text-secondary">
-                        Select Video File (MP4, MOV)
-                    </label>
-                    <input
-                        type="file"
-                        accept="video/mp4,video/quicktime"
-                        onChange={(e) => setFile(e.target.files[0])}
-                        className="block w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-active-bg file:text-primary hover:file:bg-active-bg cursor-pointer"
-                    />
+                    <label className="block mb-1 text-sm font-medium text-text-secondary">Select Video File (MP4, MOV)</label>
+                    <input type="file" accept="video/mp4,video/quicktime" onChange={(e) => setFile(e.target.files[0])}
+                        className="block w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-active-bg file:text-primary hover:file:bg-active-bg cursor-pointer" />
                 </div>
-
-                {file && (
-                    <p className="text-caption text-text-secondary">
-                        Selected: <span className="text-text-primary font-medium">{file.name}</span> ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                    </p>
-                )}
-
-                {uploading && (
-                    <div className="space-y-1">
-                        <ProgressBar value={progress} />
-                        <p className="text-caption text-text-secondary">{progress}% uploaded...</p>
-                    </div>
-                )}
-
-                <Button onClick={handleUpload} disabled={uploading || !file}>
-                    {uploading ? "Uploading..." : "Upload Video"}
-                </Button>
+                {file && <p className="text-caption text-text-secondary">Selected: <span className="text-text-primary font-medium">{file.name}</span> ({(file.size / (1024 * 1024)).toFixed(2)} MB)</p>}
+                {uploading && <div className="space-y-1"><ProgressBar value={progress} /><p className="text-caption text-text-secondary">{progress}% uploaded...</p></div>}
+                <Button onClick={handleUpload} disabled={uploading || !file}>{uploading ? "Uploading..." : "Upload Video"}</Button>
             </div>
-
-            {/* Video List */}
             <div className="space-y-3">
                 <p className="text-h3 text-text-primary">Uploaded Videos</p>
-
                 {loadingVideos ? (
                     <p className="text-caption text-text-secondary">Loading videos...</p>
                 ) : videos.length === 0 ? (
@@ -385,30 +276,17 @@ function VideoUploader({ courseId }) {
                     </div>
                 ) : (
                     videos.map((v) => (
-                        <div
-                            key={v._id}
-                            className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3"
-                        >
+                        <div key={v._id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-lg bg-active-bg flex items-center justify-center">
                                     <FileVideo size={16} className="text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-body text-text-primary">{v.title}</p>
-                                    <a
-                                        href={v.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-caption text-primary underline"
-                                    >
-                                        Preview
-                                    </a>
+                                    <a href={v.url} target="_blank" rel="noreferrer" className="text-caption text-primary underline">Preview</a>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handleDelete(v._id)}
-                                className="text-red-400 hover:text-red-600 transition-colors"
-                            >
+                            <button onClick={() => handleDelete(v._id)} className="text-red-400 hover:text-red-600 transition-colors">
                                 <Trash2 size={16} />
                             </button>
                         </div>
@@ -419,16 +297,14 @@ function VideoUploader({ courseId }) {
     );
 }
 
-// ── Curriculum Builder + Uploads (course editor) ─────────────────────────
+// ── Course Editor ────────────────────────────────────────────────────────
 function CourseEditor({ course, onBack }) {
     const [tab, setTab] = useState("details");
-
     const [title, setTitle] = useState(course.title || "");
     const [category, setCategory] = useState(course.category || "");
     const [description, setDescription] = useState(course.description || "");
     const [price, setPrice] = useState(course.price || 0);
     const [loading, setLoading] = useState(false);
-
     const [image, setImage] = useState(course.image || "");
     const [language, setLanguage] = useState(course.language || "English");
     const [complexity, setComplexity] = useState(course.complexity || "Beginner");
@@ -437,18 +313,7 @@ function CourseEditor({ course, onBack }) {
     const handleSave = async () => {
         try {
             setLoading(true);
-
-            await courseService.updateCourse(course._id, {
-                title,
-                category,
-                description,
-                price,
-                image,
-                language,
-                complexity,
-                duration,
-            });
-
+            await courseService.updateCourse(course._id, { title, category, description, price, image, language, complexity, duration });
             alert("Course updated successfully");
             onBack();
         } catch (error) {
@@ -474,11 +339,8 @@ function CourseEditor({ course, onBack }) {
                         { id: "videos", label: "Upload Videos", icon: FileVideo },
                         { id: "materials", label: "Study Materials", icon: FileText },
                     ].map((t) => (
-                        <button
-                            key={t.id}
-                            onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"}`}
-                        >
+                        <button key={t.id} onClick={() => setTab(t.id)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-active-bg text-primary" : "text-text-secondary hover:bg-active-bg"}`}>
                             <t.icon size={15} /> {t.label}
                         </button>
                     ))}
@@ -486,93 +348,30 @@ function CourseEditor({ course, onBack }) {
 
                 {tab === "details" && (
                     <div className="space-y-4">
-                        <div>
-                            <label className="block mb-1 font-medium">Course Title</label>
-                            <input
-                                className="w-full border rounded-lg p-2"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                            />
-                        </div>
+                        <div><label className="block mb-1 font-medium">Course Title</label><input className="w-full border rounded-lg p-2" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
                         <div>
                             <label className="block mb-1 font-medium">Category</label>
-                            <select
-                                className="w-full border rounded-lg p-2"
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                            >
-                                <option value="Frontend">Frontend</option>
-                                <option value="Backend">Backend</option>
-                                <option value="Software">Software</option>
-                                <option value="IT">IT</option>
-                                <option value="Design">Design</option>
+                            <select className="w-full border rounded-lg p-2" value={category} onChange={(e) => setCategory(e.target.value)}>
+                                {["Frontend", "Backend", "Software", "IT", "Design"].map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Description</label>
-                            <textarea
-                                rows={5}
-                                className="w-full border rounded-lg p-2"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Price</label>
-                            <input
-                                type="number"
-                                className="w-full border rounded-lg p-2"
-                                value={price}
-                                onChange={(e) => setPrice(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Course Thumbnail URL</label>
-                            <input
-                                type="text"
-                                className="w-full border rounded-lg p-2"
-                                value={image}
-                                onChange={(e) => setImage(e.target.value)}
-                                placeholder="https://example.com/image.jpg"
-                            />
-                        </div>
+                        <div><label className="block mb-1 font-medium">Description</label><textarea rows={5} className="w-full border rounded-lg p-2" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+                        <div><label className="block mb-1 font-medium">Price</label><input type="number" className="w-full border rounded-lg p-2" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+                        <div><label className="block mb-1 font-medium">Course Thumbnail URL</label><input type="text" className="w-full border rounded-lg p-2" value={image} onChange={(e) => setImage(e.target.value)} /></div>
                         <div>
                             <label className="block mb-1 font-medium">Language</label>
-                            <select
-                                className="w-full border rounded-lg p-2"
-                                value={language}
-                                onChange={(e) => setLanguage(e.target.value)}
-                            >
-                                <option value="English">English</option>
-                                <option value="Hindi">Hindi</option>
-                                <option value="Marathi">Marathi</option>
+                            <select className="w-full border rounded-lg p-2" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                                {["English", "Hindi", "Marathi"].map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="block mb-1 font-medium">Complexity</label>
-                            <select
-                                className="w-full border rounded-lg p-2"
-                                value={complexity}
-                                onChange={(e) => setComplexity(e.target.value)}
-                            >
-                                <option value="Beginner">Beginner</option>
-                                <option value="Intermediate">Intermediate</option>
-                                <option value="Advanced">Advanced</option>
+                            <select className="w-full border rounded-lg p-2" value={complexity} onChange={(e) => setComplexity(e.target.value)}>
+                                {["Beginner", "Intermediate", "Advanced"].map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Duration</label>
-                            <input
-                                type="text"
-                                className="w-full border rounded-lg p-2"
-                                value={duration}
-                                onChange={(e) => setDuration(e.target.value)}
-                                placeholder="8 weeks"
-                            />
-                        </div>
-                        <Button onClick={handleSave} disabled={loading}>
-                            {loading ? "Saving..." : "Save Changes"}
-                        </Button>
+                        <div><label className="block mb-1 font-medium">Duration</label><input type="text" className="w-full border rounded-lg p-2" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
+                        <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Changes"}</Button>
                     </div>
                 )}
 
@@ -590,8 +389,7 @@ function CourseEditor({ course, onBack }) {
                                 <ul className="space-y-1.5">
                                     {m.lessons.map((l) => (
                                         <li key={l.id} className="flex items-center justify-between text-body text-text-secondary pl-2">
-                                            <span>{l.title}</span>
-                                            <span className="text-caption">{l.duration}</span>
+                                            <span>{l.title}</span><span className="text-caption">{l.duration}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -601,10 +399,7 @@ function CourseEditor({ course, onBack }) {
                     </div>
                 )}
 
-                {/* FIXED - now uses VideoUploader component */}
-                {tab === "videos" && (
-                    <VideoUploader courseId={course._id} />
-                )}
+                {tab === "videos" && <VideoUploader courseId={course._id} />}
 
                 {tab === "materials" && (
                     <div className="border-2 border-dashed border-border-light rounded-2xl py-12 flex flex-col items-center justify-center text-center">
@@ -625,9 +420,7 @@ function ManageCourses() {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
 
-    useEffect(() => {
-        fetchCourses();
-    }, []);
+    useEffect(() => { fetchCourses(); }, []);
 
     const fetchCourses = async () => {
         try {
@@ -643,7 +436,6 @@ function ManageCourses() {
 
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this course?")) return;
-
         try {
             await courseService.deleteCourse(id);
             setCourses((prev) => prev.filter((course) => course._id !== id));
@@ -653,59 +445,24 @@ function ManageCourses() {
         }
     };
 
-    if (editing) {
-        return (
-            <CourseEditor
-                course={editing}
-                onBack={() => {
-                    setEditing(null);
-                    fetchCourses();
-                }}
-            />
-        );
-    }
-
-    if (loading) {
-        return <p>Loading courses...</p>;
-    }
+    if (editing) return <CourseEditor course={editing} onBack={() => { setEditing(null); fetchCourses(); }} />;
+    if (loading) return <p>Loading courses...</p>;
 
     return (
         <div className="space-y-4">
             {courses.length === 0 ? (
-                <Card>
-                    <p>No courses created yet</p>
-                </Card>
+                <Card><p>No courses created yet</p></Card>
             ) : (
                 courses.map((c) => (
                     <Card key={c._id} className="flex items-center gap-4 flex-wrap">
-                        <img
-                            src={c.image || ""}
-                            alt={c.title}
-                            className="w-20 h-16 object-cover rounded-xl"
-                        />
+                        <img src={c.image || ""} alt={c.title} className="w-20 h-16 object-cover rounded-xl" />
                         <div className="flex-1 min-w-[180px]">
                             <p className="text-body-lg text-text-primary">{c.title}</p>
-                            <p className="text-caption text-text-secondary">
-                                {c.category} · {c.studentsEnrolled || 0} students
-                            </p>
+                            <p className="text-caption text-text-secondary">{c.category} · {c.studentsEnrolled || 0} students</p>
                         </div>
-                        <Badge
-                            tone={
-                                c.status === "approved"
-                                    ? "success"
-                                    : c.status === "rejected"
-                                        ? "danger"
-                                        : "warning"
-                            }
-                        >
-                            {c.status}
-                        </Badge>
-                        <Button variant="outline" className="h-9 px-4" onClick={() => setEditing(c)}>
-                            Edit
-                        </Button>
-                        <Button variant="destructive" className="h-9 px-4" onClick={() => handleDelete(c._id)}>
-                            Delete
-                        </Button>
+                        <Badge tone={c.status === "approved" ? "success" : c.status === "rejected" ? "danger" : "warning"}>{c.status}</Badge>
+                        <Button variant="outline" className="h-9 px-4" onClick={() => setEditing(c)}>Edit</Button>
+                        <Button variant="destructive" className="h-9 px-4" onClick={() => handleDelete(c._id)}>Delete</Button>
                     </Card>
                 ))
             )}
@@ -722,13 +479,7 @@ function ManageAssignments() {
     const [selectedAssignment, setSelectedAssignment] = useState(null);
     const [submissions, setSubmissions] = useState([]);
     const [loadingSubmissions, setLoadingSubmissions] = useState(false);
-    const [newAssignment, setNewAssignment] = useState({
-        title: '',
-        description: '',
-        dueDate: '',
-        courseId: '',
-        maxMarks: 100
-    });
+    const [newAssignment, setNewAssignment] = useState({ title: '', description: '', dueDate: '', courseId: '', maxMarks: 100 });
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState(null);
     const [formError, setFormError] = useState(null);
@@ -737,27 +488,14 @@ function ManageAssignments() {
     const [editingAssignment, setEditingAssignment] = useState(null);
     const [gradingData, setGradingData] = useState({});
 
-    useEffect(() => {
-        fetchAssignments();
-        fetchCourses();
-    }, []);
+    useEffect(() => { fetchAssignments(); fetchCourses(); }, []);
 
     const fetchAssignments = async () => {
         try {
             setError(null);
             const response = await assignmentService.getMyAssignments();
-            console.log('Assignments response:', response);
-
-            let assignmentsData = [];
-            if (response && response.assignments) {
-                assignmentsData = response.assignments;
-            } else if (response && response.data) {
-                assignmentsData = response.data;
-            } else if (Array.isArray(response)) {
-                assignmentsData = response;
-            }
-
-            setAssignments(assignmentsData);
+            let data = response?.assignments || response?.data || (Array.isArray(response) ? response : []);
+            setAssignments(data);
         } catch (error) {
             console.error("Failed to fetch assignments:", error);
             setError("Failed to load assignments. Please try again.");
@@ -770,31 +508,9 @@ function ManageAssignments() {
         try {
             setLoadingCourses(true);
             const response = await courseService.getMyCourses();
-            console.log('Full response:', response);
-
-            let courses = [];
-            if (response && response.success && response.course) {
-                courses = response.course;
-            } else if (response && response.courses) {
-                courses = response.courses;
-            } else if (Array.isArray(response)) {
-                courses = response;
-            }
-
-            // Filter only approved courses
-            // Assuming 'status' field indicates approval (e.g., 'active', 'approved', or 'published')
-            const approvedCourses = courses.filter(course => {
-                // Check for different possible status fields
-                const status = course.status || course.courseStatus || course.approvalStatus;
-                // Only include if status is 'active', 'approved', 'published', or true
-                return status === 'active' ||
-                    status === 'approved' ||
-                    status === 'published' ||
-                    status === true;
-            });
-
-            setAvailableCourses(approvedCourses);
-            console.log('Loaded approved courses:', approvedCourses);
+            let courses = response?.course || response?.courses || (Array.isArray(response) ? response : []);
+            const approved = courses.filter(c => ["active", "approved", "published", true].includes(c.status || c.courseStatus || c.approvalStatus));
+            setAvailableCourses(approved);
         } catch (error) {
             console.error("Failed to fetch courses:", error);
             setAvailableCourses([]);
@@ -807,18 +523,7 @@ function ManageAssignments() {
         try {
             setLoadingSubmissions(true);
             const response = await assignmentService.getAssignmentSubmissions(assignmentId);
-            console.log('Submissions response:', response);
-
-            let submissionsData = [];
-            if (response && response.submissions) {
-                submissionsData = response.submissions;
-            } else if (response && response.data) {
-                submissionsData = response.data;
-            } else if (Array.isArray(response)) {
-                submissionsData = response;
-            }
-
-            setSubmissions(submissionsData);
+            setSubmissions(response?.submissions || response?.data || (Array.isArray(response) ? response : []));
             setShowSubmissions(true);
         } catch (error) {
             console.error("Failed to fetch submissions:", error);
@@ -828,303 +533,101 @@ function ManageAssignments() {
         }
     };
 
-    const handleViewSubmissions = (assignment) => {
-        setSelectedAssignment(assignment);
-        fetchSubmissions(assignment._id);
-    };
-
     const handleCreateAssignment = async () => {
-        if (!newAssignment.title.trim()) {
-            setFormError('Please enter an assignment title');
-            return;
+        if (!newAssignment.title.trim() || !newAssignment.description.trim() || !newAssignment.dueDate || !newAssignment.courseId) {
+            setFormError('Please fill all required fields'); return;
         }
-
-        if (!newAssignment.description.trim()) {
-            setFormError('Please enter an assignment description');
-            return;
-        }
-
-        if (!newAssignment.dueDate) {
-            setFormError('Please select a due date');
-            return;
-        }
-
-        if (!newAssignment.courseId) {
-            setFormError('Please select a course');
-            return;
-        }
-
-        if (!newAssignment.maxMarks || newAssignment.maxMarks < 1) {
-            setFormError('Please enter valid maximum marks (minimum 1)');
-            return;
-        }
-
-        setFormError(null);
-        setCreating(true);
-
+        setFormError(null); setCreating(true);
         try {
-            const assignmentData = {
-                title: newAssignment.title.trim(),
-                description: newAssignment.description.trim(),
-                courseId: newAssignment.courseId,
-                dueDate: new Date(newAssignment.dueDate).toISOString(),
+            const response = await assignmentService.createAssignment({
+                title: newAssignment.title.trim(), description: newAssignment.description.trim(),
+                courseId: newAssignment.courseId, dueDate: new Date(newAssignment.dueDate).toISOString(),
                 maxMarks: parseInt(newAssignment.maxMarks) || 100,
-            };
-
-            console.log('Sending assignment data:', JSON.stringify(assignmentData, null, 2));
-
-            const response = await assignmentService.createAssignment(assignmentData);
-            console.log('Create assignment response:', response);
-
-            const newAssignmentObj = response.assignment || response.data || response;
-            setAssignments([newAssignmentObj, ...assignments]);
-            setShowCreateForm(false);
-            setNewAssignment({
-                title: '',
-                description: '',
-                dueDate: '',
-                courseId: '',
-                maxMarks: 100
             });
-
-            console.log('Assignment created successfully:', newAssignmentObj);
-
+            setAssignments([response.assignment || response.data || response, ...assignments]);
+            setShowCreateForm(false);
+            setNewAssignment({ title: '', description: '', dueDate: '', courseId: '', maxMarks: 100 });
         } catch (error) {
-            console.error("Failed to create assignment:", error);
-
-            let errorMessage = 'Failed to create assignment. Please try again.';
-            if (error.response) {
-                if (error.response.data?.message) {
-                    errorMessage = error.response.data.message;
-                }
-            } else if (error.request) {
-                errorMessage = 'No response from server. Please check your connection.';
-            }
-
-            setFormError(errorMessage);
+            setFormError(error.response?.data?.message || 'Failed to create assignment.');
         } finally {
             setCreating(false);
         }
-    };
-
-    const handleDeleteAssignment = async (assignmentId) => {
-        if (!window.confirm('Are you sure you want to delete this assignment?')) return;
-
-        try {
-            await assignmentService.deleteAssignment(assignmentId);
-            setAssignments(assignments.filter(a => a._id !== assignmentId));
-        } catch (error) {
-            console.error("Failed to delete assignment:", error);
-            alert('Failed to delete assignment. Please try again.');
-        }
-    };
-
-    const handleEditAssignment = (assignment) => {
-        setEditingAssignment(assignment);
-        setNewAssignment({
-            title: assignment.title,
-            description: assignment.description || '',
-            dueDate: assignment.dueDate ? new Date(assignment.dueDate).toISOString().split('T')[0] : '',
-            courseId: assignment.courseId?._id || assignment.courseId || '',
-            maxMarks: assignment.maxMarks || 100
-        });
-        setShowCreateForm(true);
     };
 
     const handleUpdateAssignment = async () => {
-        if (!newAssignment.title.trim()) {
-            setFormError('Please enter an assignment title');
-            return;
-        }
-
-        setFormError(null);
-        setCreating(true);
-
+        if (!newAssignment.title.trim()) { setFormError('Please enter a title'); return; }
+        setFormError(null); setCreating(true);
         try {
-            const updateData = {
-                title: newAssignment.title.trim(),
-                description: newAssignment.description.trim(),
-                dueDate: new Date(newAssignment.dueDate).toISOString(),
-                maxMarks: parseInt(newAssignment.maxMarks) || 100,
-            };
-
-            const response = await assignmentService.updateAssignment(editingAssignment._id, updateData);
-            const updatedAssignment = response.assignment || response.data || response;
-
-            setAssignments(assignments.map(a =>
-                a._id === updatedAssignment._id ? updatedAssignment : a
-            ));
-
-            setShowCreateForm(false);
-            setEditingAssignment(null);
-            setNewAssignment({
-                title: '',
-                description: '',
-                dueDate: '',
-                courseId: '',
-                maxMarks: 100
+            const response = await assignmentService.updateAssignment(editingAssignment._id, {
+                title: newAssignment.title.trim(), description: newAssignment.description.trim(),
+                dueDate: new Date(newAssignment.dueDate).toISOString(), maxMarks: parseInt(newAssignment.maxMarks) || 100,
             });
-
+            const updated = response.assignment || response.data || response;
+            setAssignments(assignments.map(a => a._id === updated._id ? updated : a));
+            setShowCreateForm(false); setEditingAssignment(null);
+            setNewAssignment({ title: '', description: '', dueDate: '', courseId: '', maxMarks: 100 });
         } catch (error) {
-            console.error("Failed to update assignment:", error);
-            setFormError('Failed to update assignment. Please try again.');
+            setFormError('Failed to update assignment.');
         } finally {
             setCreating(false);
         }
+    };
+
+    const handleDeleteAssignment = async (id) => {
+        if (!window.confirm('Delete this assignment?')) return;
+        try {
+            await assignmentService.deleteAssignment(id);
+            setAssignments(assignments.filter(a => a._id !== id));
+        } catch { alert('Failed to delete.'); }
     };
 
     const handleGradeSubmission = async (submissionId) => {
         const gradeData = gradingData[submissionId];
-        if (!gradeData || gradeData.marks === undefined || gradeData.marks === '') {
-            alert('Please enter marks for this submission');
-            return;
-        }
-
-        const marks = parseFloat(gradeData.marks);
-        if (isNaN(marks) || marks < 0) {
-            alert('Please enter valid marks (0 or higher)');
-            return;
-        }
-
-        if (marks > (selectedAssignment.maxMarks || 100)) {
-            alert(`Marks cannot exceed ${selectedAssignment.maxMarks || 100}`);
-            return;
-        }
-
+        if (!gradeData?.marks && gradeData?.marks !== 0) { alert('Please enter marks'); return; }
         try {
-            const response = await assignmentService.gradeSubmission(submissionId, {
-                marks: marks,
-                feedback: gradeData.feedback || ''
-            });
-
-            // Update the submission in the list
-            const gradedSubmission = response.submission || response.data || response;
-            setSubmissions(submissions.map(s =>
-                s._id === gradedSubmission._id ? gradedSubmission : s
-            ));
-
-            // Clear grading data for this submission
+            const response = await assignmentService.gradeSubmission(submissionId, { marks: parseFloat(gradeData.marks), feedback: gradeData.feedback || '' });
+            const graded = response.submission || response.data || response;
+            setSubmissions(submissions.map(s => s._id === graded._id ? graded : s));
             setGradingData(prev => ({ ...prev, [submissionId]: undefined }));
-
-            // Check if all submissions are graded
-            const allGraded = submissions.every(s =>
-                s._id === submissionId || s.status === 'graded'
-            );
-
-            // Update the assignment status if all submissions are graded
-            if (allGraded) {
-                const updatedAssignments = assignments.map(a => {
-                    if (a._id === selectedAssignment._id) {
-                        return { ...a, status: 'graded' };
-                    }
-                    return a;
-                });
-                setAssignments(updatedAssignments);
-            }
-
-        } catch (error) {
-            console.error("Failed to grade submission:", error);
-            alert('Failed to grade submission. Please try again.');
-        }
+        } catch { alert('Failed to grade submission.'); }
     };
 
     const getStatusBadge = (status) => {
-        switch (status) {
-            case 'graded':
-                return <Badge tone="success">Graded</Badge>;
-            case 'submitted':
-                return <Badge tone="info">Submitted</Badge>;
-            case 'pending':
-                return <Badge tone="warning">Pending</Badge>;
-            default:
-                return <Badge tone="warning">{status || 'Pending'}</Badge>;
-        }
+        const tones = { graded: "success", submitted: "info", pending: "warning" };
+        return <Badge tone={tones[status] || "warning"}>{status || 'Pending'}</Badge>;
     };
 
-    const formatDate = (date) => {
-        if (!date) return 'No Due Date';
-        return new Date(date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
+    const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No Due Date';
 
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <p className="text-gray-500">Loading assignments...</p>
-            </div>
-        );
-    }
+    if (loading) return <div className="flex justify-center items-center h-64"><p className="text-gray-500">Loading assignments...</p></div>;
 
     return (
         <div className="space-y-4">
             {error && (
                 <div className="text-red-600 p-4 bg-red-50 rounded-md border border-red-200">
-                    {error}
-                    <button
-                        onClick={fetchAssignments}
-                        className="ml-4 text-blue-600 underline hover:text-blue-800"
-                    >
-                        Retry
-                    </button>
+                    {error}<button onClick={fetchAssignments} className="ml-4 text-blue-600 underline">Retry</button>
                 </div>
             )}
 
-            {/* Assignments List */}
             {assignments.length === 0 ? (
-                <Card className="p-8 text-center">
-                    <p className="text-gray-500">No assignments found. Create your first assignment!</p>
-                </Card>
+                <Card className="p-8 text-center"><p className="text-gray-500">No assignments found. Create your first assignment!</p></Card>
             ) : (
                 assignments.map((a) => (
-                    <Card
-                        key={a._id}
-                        className="flex items-center justify-between flex-wrap gap-3 p-4"
-                    >
+                    <Card key={a._id} className="flex items-center justify-between flex-wrap gap-3 p-4">
                         <div className="flex-1">
-                            <p className="text-body-lg text-text-primary font-medium">
-                                {a.title}
-                            </p>
-
-                            <p className="text-caption text-text-secondary">
-                                {a.courseId?.title || "Unknown Course"} · Due {formatDate(a.dueDate)}
-                                {a.maxMarks && ` · Max Marks: ${a.maxMarks}`}
-                            </p>
-
-                            {a.description && (
-                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                                    {a.description}
-                                </p>
-                            )}
+                            <p className="text-body-lg text-text-primary font-medium">{a.title}</p>
+                            <p className="text-caption text-text-secondary">{a.courseId?.title || "Unknown Course"} · Due {formatDate(a.dueDate)}{a.maxMarks ? ` · Max Marks: ${a.maxMarks}` : ''}</p>
+                            {a.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{a.description}</p>}
                         </div>
-
                         <div className="flex items-center gap-2 flex-wrap">
                             {getStatusBadge(a.status)}
-
-                            <Button
-                                variant="outline"
-                                className="h-9 px-3"
-                                onClick={() => handleViewSubmissions(a)}
-                            >
-                                <FileText size={16} className="mr-1" />
-                                Submissions
+                            <Button variant="outline" className="h-9 px-3" onClick={() => { setSelectedAssignment(a); fetchSubmissions(a._id); }}>
+                                <FileText size={16} className="mr-1" />Submissions
                             </Button>
-
-                            <Button
-                                variant="outline"
-                                className="h-9 px-3"
-                                onClick={() => handleEditAssignment(a)}
-                            >
+                            <Button variant="outline" className="h-9 px-3" onClick={() => { setEditingAssignment(a); setNewAssignment({ title: a.title, description: a.description || '', dueDate: a.dueDate ? new Date(a.dueDate).toISOString().split('T')[0] : '', courseId: a.courseId?._id || a.courseId || '', maxMarks: a.maxMarks || 100 }); setShowCreateForm(true); }}>
                                 <Pencil size={16} />
                             </Button>
-
-                            <Button
-                                variant="outline"
-                                className="h-9 px-3 text-red-600 hover:text-red-700"
-                                onClick={() => handleDeleteAssignment(a._id)}
-                            >
+                            <Button variant="outline" className="h-9 px-3 text-red-600 hover:text-red-700" onClick={() => handleDeleteAssignment(a._id)}>
                                 <Trash2 size={16} />
                             </Button>
                         </div>
@@ -1132,320 +635,85 @@ function ManageAssignments() {
                 ))
             )}
 
-            {/* Create Assignment Button */}
             {!showCreateForm && (
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        setEditingAssignment(null);
-                        setShowCreateForm(true);
-                    }}
-                >
-                    <PlusCircle size={16} />
-                    Create Assignment
+                <Button variant="outline" onClick={() => { setEditingAssignment(null); setShowCreateForm(true); }}>
+                    <PlusCircle size={16} /> Create Assignment
                 </Button>
             )}
 
-            {/* Create/Edit Form */}
             {showCreateForm && (
                 <Card className="p-6">
-                    <h3 className="text-xl font-semibold mb-4">
-                        {editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}
-                    </h3>
-
-                    {formError && (
-                        <div className="text-red-600 p-3 bg-red-50 rounded-md mb-4 border border-red-200">
-                            {formError}
-                        </div>
-                    )}
-
+                    <h3 className="text-xl font-semibold mb-4">{editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}</h3>
+                    {formError && <div className="text-red-600 p-3 bg-red-50 rounded-md mb-4 border border-red-200">{formError}</div>}
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Assignment Title *
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="e.g., Final Project, Midterm Exam, Homework 1"
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={newAssignment.title}
-                                onChange={(e) => setNewAssignment({
-                                    ...newAssignment,
-                                    title: e.target.value
-                                })}
-                                disabled={creating}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Description *
-                            </label>
-                            <textarea
-                                placeholder="Describe the assignment requirements, objectives, and expectations..."
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={newAssignment.description}
-                                onChange={(e) => setNewAssignment({
-                                    ...newAssignment,
-                                    description: e.target.value
-                                })}
-                                disabled={creating}
-                                rows="4"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Course *
-                            </label>
-                            <select
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={newAssignment.courseId}
-                                onChange={(e) => setNewAssignment({
-                                    ...newAssignment,
-                                    courseId: e.target.value
-                                })}
-                                disabled={creating || loadingCourses || !!editingAssignment}
-                            >
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Assignment Title *</label>
+                            <input type="text" className="w-full p-2 border border-gray-300 rounded-md" value={newAssignment.title} onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })} disabled={creating} /></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                            <textarea className="w-full p-2 border border-gray-300 rounded-md" rows="4" value={newAssignment.description} onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })} disabled={creating} /></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+                            <select className="w-full p-2 border border-gray-300 rounded-md" value={newAssignment.courseId} onChange={(e) => setNewAssignment({ ...newAssignment, courseId: e.target.value })} disabled={creating || !!editingAssignment}>
                                 <option value="">Select a Course</option>
-                                {availableCourses.map((course) => (
-                                    <option key={course._id} value={course._id}>
-                                        {course.title} {course.code ? `(${course.code})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            {editingAssignment && (
-                                <p className="text-xs text-gray-500 mt-1">Course cannot be changed for existing assignments</p>
-                            )}
-                            {!loadingCourses && availableCourses.length === 0 && (
-                                <p className="text-sm text-yellow-600 mt-1">
-                                    No courses available. Please create a course first.
-                                </p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Due Date *
-                            </label>
-                            <input
-                                type="date"
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={newAssignment.dueDate}
-                                onChange={(e) => setNewAssignment({
-                                    ...newAssignment,
-                                    dueDate: e.target.value
-                                })}
-                                disabled={creating}
-                                min={new Date().toISOString().split('T')[0]}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Maximum Marks *
-                            </label>
-                            <input
-                                type="number"
-                                placeholder="e.g., 100"
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={newAssignment.maxMarks}
-                                onChange={(e) => setNewAssignment({
-                                    ...newAssignment,
-                                    maxMarks: parseInt(e.target.value) || 100
-                                })}
-                                disabled={creating}
-                                min="1"
-                                max="1000"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Enter the total marks for this assignment (1-1000)</p>
-                        </div>
+                                {availableCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+                            </select></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
+                            <input type="date" className="w-full p-2 border border-gray-300 rounded-md" value={newAssignment.dueDate} onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })} disabled={creating} min={new Date().toISOString().split('T')[0]} /></div>
+                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Maximum Marks *</label>
+                            <input type="number" className="w-full p-2 border border-gray-300 rounded-md" value={newAssignment.maxMarks} onChange={(e) => setNewAssignment({ ...newAssignment, maxMarks: parseInt(e.target.value) || 100 })} disabled={creating} min="1" max="1000" /></div>
                     </div>
-
                     <div className="flex gap-2 mt-6 pt-4 border-t border-gray-200">
-                        <Button
-                            onClick={editingAssignment ? handleUpdateAssignment : handleCreateAssignment}
-                            disabled={creating}
-                            className="px-6"
-                        >
-                            {creating ? 'Saving...' : (editingAssignment ? 'Update Assignment' : 'Create Assignment')}
+                        <Button onClick={editingAssignment ? handleUpdateAssignment : handleCreateAssignment} disabled={creating}>
+                            {creating ? 'Saving...' : editingAssignment ? 'Update Assignment' : 'Create Assignment'}
                         </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setShowCreateForm(false);
-                                setEditingAssignment(null);
-                                setNewAssignment({
-                                    title: '',
-                                    description: '',
-                                    dueDate: '',
-                                    courseId: '',
-                                    maxMarks: 100
-                                });
-                                setFormError(null);
-                            }}
-                            disabled={creating}
-                        >
-                            Cancel
-                        </Button>
+                        <Button variant="outline" onClick={() => { setShowCreateForm(false); setEditingAssignment(null); setNewAssignment({ title: '', description: '', dueDate: '', courseId: '', maxMarks: 100 }); setFormError(null); }} disabled={creating}>Cancel</Button>
                     </div>
                 </Card>
             )}
 
-            {/* Submissions Modal */}
             {showSubmissions && selectedAssignment && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                        setShowSubmissions(false);
-                        setSelectedAssignment(null);
-                        setSubmissions([]);
-                        setGradingData({});
-                    }
-                }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    onClick={(e) => { if (e.target === e.currentTarget) { setShowSubmissions(false); setSelectedAssignment(null); setSubmissions([]); setGradingData({}); } }}>
                     <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <div>
-                                <h3 className="text-xl font-semibold">
-                                    Submissions for: {selectedAssignment.title}
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    Course: {selectedAssignment.courseId?.title || 'Unknown'} ·
-                                    Due: {formatDate(selectedAssignment.dueDate)} ·
-                                    Max Marks: {selectedAssignment.maxMarks || 100}
-                                </p>
+                                <h3 className="text-xl font-semibold">Submissions for: {selectedAssignment.title}</h3>
+                                <p className="text-sm text-gray-500">Max Marks: {selectedAssignment.maxMarks || 100}</p>
                             </div>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setShowSubmissions(false);
-                                    setSelectedAssignment(null);
-                                    setSubmissions([]);
-                                    setGradingData({});
-                                }}
-                            >
-                                Close
-                            </Button>
+                            <Button variant="outline" onClick={() => { setShowSubmissions(false); setSelectedAssignment(null); setSubmissions([]); setGradingData({}); }}>Close</Button>
                         </div>
-
-                        {loadingSubmissions ? (
-                            <div className="text-center py-8">
-                                <p className="text-gray-500">Loading submissions...</p>
-                            </div>
-                        ) : submissions.length === 0 ? (
-                            <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                <p className="text-gray-500">No submissions yet for this assignment.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {submissions.map((submission) => (
-                                    <Card key={submission._id} className="p-4">
+                        {loadingSubmissions ? <p className="text-center py-8 text-gray-500">Loading submissions...</p>
+                            : submissions.length === 0 ? <p className="text-center py-8 text-gray-500">No submissions yet.</p>
+                                : submissions.map((sub) => (
+                                    <Card key={sub._id} className="p-4 mb-4">
                                         <div className="flex flex-col md:flex-row justify-between gap-4">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-3 flex-wrap">
-                                                    <p className="font-medium">
-                                                        Student: {submission.studentId?.name || 'Unknown Student'}
-                                                    </p>
-                                                    {getStatusBadge(submission.status)}
+                                                    <p className="font-medium">{sub.studentId?.name || 'Unknown'}</p>
+                                                    {getStatusBadge(sub.status)}
                                                 </div>
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                    Email: {submission.studentId?.email || 'No email'}
-                                                </p>
-                                                {submission.submissionText && (
-                                                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.submissionText}</p>
-                                                    </div>
-                                                )}
-                                                {submission.fileUrl && (
-                                                    <a
-                                                        href={submission.fileUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 hover:underline text-sm inline-block mt-2"
-                                                    >
-                                                        📎 View Attachment
-                                                    </a>
-                                                )}
-                                                {submission.createdAt && (
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        Submitted: {new Date(submission.createdAt).toLocaleString()}
-                                                    </p>
-                                                )}
+                                                {sub.submissionText && <p className="text-sm text-gray-700 mt-2 p-3 bg-gray-50 rounded-md whitespace-pre-wrap">{sub.submissionText}</p>}
+                                                {sub.fileUrl && <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm mt-2 inline-block">📎 View Attachment</a>}
                                             </div>
-
-                                            {submission.status !== 'graded' ? (
+                                            {sub.status !== 'graded' ? (
                                                 <div className="flex flex-col gap-2 min-w-[200px]">
-                                                    <div>
-                                                        <label className="text-sm font-medium text-gray-700">
-                                                            Marks *
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            placeholder="Enter marks"
-                                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                            value={gradingData[submission._id]?.marks || ''}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-                                                                setGradingData(prev => ({
-                                                                    ...prev,
-                                                                    [submission._id]: {
-                                                                        ...prev[submission._id],
-                                                                        marks: value,
-                                                                        maxMarks: selectedAssignment.maxMarks || 100
-                                                                    }
-                                                                }));
-                                                            }}
-                                                            min="0"
-                                                            max={selectedAssignment.maxMarks || 100}
-                                                        />
-                                                        <p className="text-xs text-gray-400 mt-1">
-                                                            Max: {selectedAssignment.maxMarks || 100}
-                                                        </p>
-                                                    </div>
-                                                    <div>
-                                                        <textarea
-                                                            placeholder="Feedback (optional)"
-                                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                            rows="2"
-                                                            value={gradingData[submission._id]?.feedback || ''}
-                                                            onChange={(e) => {
-                                                                setGradingData(prev => ({
-                                                                    ...prev,
-                                                                    [submission._id]: {
-                                                                        ...prev[submission._id],
-                                                                        feedback: e.target.value
-                                                                    }
-                                                                }));
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleGradeSubmission(submission._id)}
-                                                        className="w-full"
-                                                        disabled={!gradingData[submission._id]?.marks}
-                                                    >
-                                                        <CheckCircle size={14} className="mr-1" />
-                                                        Grade Submission
+                                                    <input type="number" placeholder="Enter marks" className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                                        value={gradingData[sub._id]?.marks || ''} min="0" max={selectedAssignment.maxMarks || 100}
+                                                        onChange={(e) => setGradingData(prev => ({ ...prev, [sub._id]: { ...prev[sub._id], marks: e.target.value } }))} />
+                                                    <textarea placeholder="Feedback (optional)" className="w-full p-2 border border-gray-300 rounded-md text-sm" rows="2"
+                                                        value={gradingData[sub._id]?.feedback || ''}
+                                                        onChange={(e) => setGradingData(prev => ({ ...prev, [sub._id]: { ...prev[sub._id], feedback: e.target.value } }))} />
+                                                    <Button size="sm" onClick={() => handleGradeSubmission(sub._id)} disabled={!gradingData[sub._id]?.marks}>
+                                                        <CheckCircle size={14} className="mr-1" />Grade
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <div className="text-center min-w-[150px] p-3 bg-green-50 rounded-md">
-                                                    <p className="text-lg font-bold text-green-600">
-                                                        {submission.marks}/{selectedAssignment.maxMarks || 100}
-                                                    </p>
-                                                    {submission.feedback && (
-                                                        <p className="text-sm text-gray-600 mt-1">
-                                                            Feedback: {submission.feedback}
-                                                        </p>
-                                                    )}
+                                                <div className="text-center min-w-[120px] p-3 bg-green-50 rounded-md">
+                                                    <p className="text-lg font-bold text-green-600">{sub.marks}/{selectedAssignment.maxMarks || 100}</p>
                                                     <p className="text-xs text-green-600 mt-1">✓ Graded</p>
                                                 </div>
                                             )}
                                         </div>
                                     </Card>
                                 ))}
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
@@ -1455,21 +723,313 @@ function ManageAssignments() {
 
 // ── Manage Quizzes ───────────────────────────────────────────────────────
 function ManageQuizzes() {
-    return (
-        <div className="grid sm:grid-cols-2 gap-5">
-            {quizzes.map((q) => (
-                <Card key={q.id}>
-                    <p className="text-body-lg text-text-primary">{q.title}</p>
-                    <p className="text-caption text-text-secondary mb-3">{q.course} · {q.questions} questions</p>
-                    <div className="flex items-center justify-between">
-                        <Badge tone={q.status === "Completed" ? "success" : "warning"}>{q.status}</Badge>
-                        <Button variant="outline" className="h-9 px-4">Edit</Button>
+    const [quizzes, setQuizzes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [courses, setCourses] = useState([]);
+
+    // Views: "list" | "create" | "edit"
+    const [view, setView] = useState("list");
+    const [editingQuiz, setEditingQuiz] = useState(null);
+
+    // Quiz form state
+    const [form, setForm] = useState({ title: "", description: "", courseId: "", duration: "" });
+    const [questions, setQuestions] = useState([]);
+    const [saving, setSaving] = useState(false);
+    const [formError, setFormError] = useState("");
+
+    // Current question being built
+    const blankQuestion = () => ({ question: "", options: ["", "", "", ""], correctAnswer: 0, marks: 1 });
+    const [currentQ, setCurrentQ] = useState(blankQuestion());
+    const [addingQ, setAddingQ] = useState(false);
+
+    useEffect(() => { fetchQuizzes(); fetchCourses(); }, []);
+
+    const fetchQuizzes = async () => {
+        try {
+            setLoading(true);
+            const res = await quizService.getMyQuizzes();
+            setQuizzes(res.quizzes || []);
+        } catch (err) {
+            console.error("Failed to fetch quizzes:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchCourses = async () => {
+        try {
+            const res = await courseService.getMyCourses();
+            const list = res?.course || res?.courses || (Array.isArray(res) ? res : []);
+            const approved = list.filter(c => ["approved", "active", "published"].includes(c.status));
+            setCourses(approved);
+        } catch (err) {
+            console.error("Failed to fetch courses:", err);
+        }
+    };
+
+    const openCreate = () => {
+        setForm({ title: "", description: "", courseId: "", duration: "" });
+        setQuestions([]);
+        setCurrentQ(blankQuestion());
+        setAddingQ(false);
+        setFormError("");
+        setEditingQuiz(null);
+        setView("create");
+    };
+
+    const openEdit = (quiz) => {
+        setForm({
+            title: quiz.title,
+            description: quiz.description || "",
+            courseId: quiz.courseId?._id || quiz.courseId || "",
+            duration: quiz.duration || "",
+        });
+        setQuestions(quiz.questions || []);
+        setCurrentQ(blankQuestion());
+        setAddingQ(false);
+        setFormError("");
+        setEditingQuiz(quiz);
+        setView("edit");
+    };
+
+    // Add the current question to the list
+    const handleAddQuestion = () => {
+        if (!currentQ.question.trim()) { setFormError("Question text is required."); return; }
+        if (currentQ.options.some(o => !o.trim())) { setFormError("All 4 options must be filled."); return; }
+        setFormError("");
+        setQuestions(prev => [...prev, { ...currentQ }]);
+        setCurrentQ(blankQuestion());
+        setAddingQ(false);
+    };
+
+    const handleRemoveQuestion = (idx) => {
+        setQuestions(prev => prev.filter((_, i) => i !== idx));
+    };
+
+    const handleSaveQuiz = async () => {
+        if (!form.title.trim()) { setFormError("Title is required."); return; }
+        if (!form.courseId) { setFormError("Please select a course."); return; }
+        if (!form.duration || isNaN(Number(form.duration)) || Number(form.duration) < 1) {
+            setFormError("Duration (minutes) must be a positive number."); return;
+        }
+        if (questions.length === 0) { setFormError("Add at least one question."); return; }
+
+        setSaving(true); setFormError("");
+        try {
+            const payload = { ...form, duration: Number(form.duration), questions };
+            const res = await quizService.createQuiz(payload);
+            setQuizzes(prev => [res.quiz, ...prev]);
+            setView("list");
+        } catch (err) {
+            setFormError(err.response?.data?.message || "Failed to save quiz.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handlePublish = async (quizId) => {
+        try {
+            const res = await quizService.publishQuiz(quizId);
+            setQuizzes(prev => prev.map(q => q._id === quizId ? res.quiz : q));
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to publish quiz.");
+        }
+    };
+
+    // ── Question Builder UI ───────────────────────────────────────────
+    const QuestionBuilder = () => (
+        <div className="border border-border-light rounded-xl p-5 space-y-4 bg-app">
+            <p className="text-body-lg text-text-primary font-semibold">New Question</p>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Question Text *</label>
+                <textarea rows={2} className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    value={currentQ.question}
+                    onChange={e => setCurrentQ(q => ({ ...q, question: e.target.value }))}
+                    placeholder="e.g. What is JSX?" />
+            </div>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Options (mark the correct one)</label>
+                {currentQ.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <input type="radio" name="correctOption" checked={currentQ.correctAnswer === i}
+                            onChange={() => setCurrentQ(q => ({ ...q, correctAnswer: i }))}
+                            className="accent-primary w-4 h-4 shrink-0" />
+                        <input type="text" className={`flex-1 p-2 border rounded-md text-sm ${currentQ.correctAnswer === i ? "border-primary ring-1 ring-primary" : "border-gray-300"}`}
+                            placeholder={`Option ${i + 1}`}
+                            value={opt}
+                            onChange={e => {
+                                const opts = [...currentQ.options];
+                                opts[i] = e.target.value;
+                                setCurrentQ(q => ({ ...q, options: opts }));
+                            }} />
+                        {currentQ.correctAnswer === i && (
+                            <span className="text-xs text-green-600 font-semibold shrink-0">✓ Correct</span>
+                        )}
+                    </div>
+                ))}
+            </div>
+            <div className="flex items-center gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                    <input type="number" min="1" className="w-24 p-2 border border-gray-300 rounded-md text-sm"
+                        value={currentQ.marks}
+                        onChange={e => setCurrentQ(q => ({ ...q, marks: parseInt(e.target.value) || 1 }))} />
+                </div>
+                <div className="flex gap-2 mt-5">
+                    <Button onClick={handleAddQuestion}>Add Question</Button>
+                    <Button variant="outline" onClick={() => { setAddingQ(false); setCurrentQ(blankQuestion()); setFormError(""); }}>Cancel</Button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // ── Create / Edit Form ────────────────────────────────────────────
+    if (view === "create" || view === "edit") {
+        return (
+            <div className="space-y-6 max-w-3xl">
+                <button onClick={() => setView("list")} className="flex items-center gap-1 text-caption font-semibold text-text-secondary hover:text-primary">
+                    <ChevronLeft size={16} /> Back to Quizzes
+                </button>
+                <Card>
+                    <h2 className="text-h3 text-text-primary mb-5">{view === "edit" ? "Edit Quiz" : "Create New Quiz"}</h2>
+                    {formError && <div className="text-red-600 bg-red-50 border border-red-200 rounded-md p-3 mb-4 text-sm">{formError}</div>}
+
+                    <div className="space-y-4">
+                        {/* Basic Info */}
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                                <input type="text" className="w-full p-2 border border-gray-300 rounded-md"
+                                    value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. React Fundamentals Quiz" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) *</label>
+                                <input type="number" min="1" className="w-full p-2 border border-gray-300 rounded-md"
+                                    value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} placeholder="e.g. 30" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+                            <select className="w-full p-2 border border-gray-300 rounded-md"
+                                value={form.courseId} onChange={e => setForm(f => ({ ...f, courseId: e.target.value }))}
+                                disabled={view === "edit"}>
+                                <option value="">Select a course</option>
+                                {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
+                            </select>
+                            {courses.length === 0 && <p className="text-xs text-yellow-600 mt-1">No approved courses found.</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea rows={2} className="w-full p-2 border border-gray-300 rounded-md"
+                                value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description..." />
+                        </div>
+                    </div>
+
+                    {/* Questions List */}
+                    <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-body-lg text-text-primary font-semibold">
+                                Questions <span className="text-text-secondary font-normal text-sm">({questions.length} added · {questions.reduce((s, q) => s + (q.marks || 1), 0)} total marks)</span>
+                            </p>
+                        </div>
+
+                        {questions.length === 0 && !addingQ && (
+                            <div className="text-center py-6 border-2 border-dashed border-border-light rounded-xl text-text-secondary text-sm">
+                                No questions yet. Click "Add Question" to begin.
+                            </div>
+                        )}
+
+                        <div className="space-y-3 mb-4">
+                            {questions.map((q, idx) => (
+                                <div key={idx} className="border border-border-light rounded-xl p-4 bg-white">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1">
+                                            <p className="text-body text-text-primary font-medium">Q{idx + 1}. {q.question}</p>
+                                            <ul className="mt-2 space-y-1">
+                                                {q.options.map((opt, oi) => (
+                                                    <li key={oi} className={`text-sm flex items-center gap-2 ${oi === q.correctAnswer ? "text-green-700 font-semibold" : "text-text-secondary"}`}>
+                                                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs shrink-0 ${oi === q.correctAnswer ? "border-green-500 bg-green-50" : "border-gray-300"}`}>
+                                                            {oi === q.correctAnswer ? "✓" : String.fromCharCode(65 + oi)}
+                                                        </span>
+                                                        {opt}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <p className="text-caption text-text-secondary mt-2">{q.marks} mark{q.marks !== 1 ? "s" : ""}</p>
+                                        </div>
+                                        <button onClick={() => handleRemoveQuestion(idx)} className="text-red-400 hover:text-red-600 shrink-0">
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {addingQ ? <QuestionBuilder /> : (
+                            <Button variant="outline" onClick={() => { setAddingQ(true); setFormError(""); }}>
+                                <Plus size={16} /> Add Question
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="flex gap-3 mt-6 pt-4 border-t border-border-light">
+                        <Button onClick={handleSaveQuiz} disabled={saving}>
+                            {saving ? "Saving..." : view === "edit" ? "Update Quiz" : "Save as Draft"}
+                        </Button>
+                        <Button variant="outline" onClick={() => setView("list")} disabled={saving}>Cancel</Button>
                     </div>
                 </Card>
-            ))}
-            <Card className="flex items-center justify-center border-dashed border-2 border-border-light">
-                <Button variant="ghost"><PlusCircle size={16} /> Create Quiz</Button>
-            </Card>
+            </div>
+        );
+    }
+
+    // ── Quiz List ──────────────────────────────────────────────────────
+    if (loading) return <p className="text-body text-text-secondary">Loading quizzes...</p>;
+
+    return (
+        <div className="space-y-4">
+            {quizzes.length === 0 ? (
+                <Card className="text-center py-10">
+                    <HelpCircle size={36} className="text-text-secondary mx-auto mb-3" />
+                    <p className="text-body-lg text-text-primary mb-1">No quizzes yet</p>
+                    <p className="text-caption text-text-secondary mb-4">Create your first quiz to get started.</p>
+                    <Button onClick={openCreate}><PlusCircle size={16} /> Create Quiz</Button>
+                </Card>
+            ) : (
+                <>
+                    <div className="flex justify-end">
+                        <Button onClick={openCreate}><PlusCircle size={16} /> Create Quiz</Button>
+                    </div>
+                    <div className="space-y-3">
+                        {quizzes.map((q) => (
+                            <Card key={q._id} className="flex items-center gap-4 flex-wrap">
+                                <div className="w-11 h-11 rounded-xl bg-active-bg text-primary flex items-center justify-center shrink-0">
+                                    <HelpCircle size={20} />
+                                </div>
+                                <div className="flex-1 min-w-[180px]">
+                                    <p className="text-body-lg text-text-primary">{q.title}</p>
+                                    <p className="text-caption text-text-secondary">
+                                        {q.courseId?.title || "No course"} · {q.questions?.length || 0} questions · {q.duration} min · {q.totalMarks} marks
+                                    </p>
+                                </div>
+                                <Badge tone={q.status === "published" ? "success" : "warning"}>
+                                    {q.status === "published" ? "Published" : "Draft"}
+                                </Badge>
+                                {q.status === "draft" && (
+                                    <Button className="h-9 px-4" onClick={() => handlePublish(q._id)}>
+                                        Publish
+                                    </Button>
+                                )}
+                                <Button variant="outline" className="h-9 px-4" onClick={() => openEdit(q)}>
+                                    <Pencil size={15} />
+                                </Button>
+                            </Card>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
@@ -1481,10 +1041,8 @@ function StudentProgress() {
             <table className="w-full text-left text-sm min-w-[560px]">
                 <thead>
                     <tr className="text-caption text-text-secondary border-b border-border-light">
-                        <th className="py-3 pr-4">Student</th>
-                        <th className="py-3 pr-4">Courses Enrolled</th>
-                        <th className="py-3 pr-4">Progress</th>
-                        <th className="py-3 pr-4">Status</th>
+                        <th className="py-3 pr-4">Student</th><th className="py-3 pr-4">Courses Enrolled</th>
+                        <th className="py-3 pr-4">Progress</th><th className="py-3 pr-4">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1516,332 +1074,77 @@ function Announcements() {
     const [newCourseTitle, setNewCourseTitle] = useState("");
     const [newCourseDescription, setNewCourseDescription] = useState("");
 
-    // Fetch courses
     const fetchCourses = async () => {
         try {
             setLoadingCourses(true);
             const response = await courseService.getMyCourses();
-            console.log('Full course response:', response);
-
-            let courseList = [];
-            
-            // Handle different response structures
-            if (response && response.success && response.course) {
-                // Response structure: { success: true, course: [...] }
-                courseList = response.course;
-                console.log('Found courses in response.course:', courseList);
-            } else if (response && response.courses) {
-                // Alternative: { success: true, courses: [...] }
-                courseList = response.courses;
-                console.log('Found courses in response.courses:', courseList);
-            } else if (Array.isArray(response)) {
-                // Response is directly an array
-                courseList = response;
-                console.log('Response is an array:', courseList);
-            } else if (response && response.data) {
-                // Response has data property
-                if (Array.isArray(response.data)) {
-                    courseList = response.data;
-                } else if (response.data.course) {
-                    courseList = response.data.course;
-                } else if (response.data.courses) {
-                    courseList = response.data.courses;
-                }
-            }
-
-            // Ensure we have an array
-            if (!Array.isArray(courseList)) {
-                courseList = [];
-            }
-
-            // Filter only approved/active courses
-            const approvedCourses = courseList.filter(course => {
-                const status = course.status || course.courseStatus || course.approvalStatus || course.isApproved;
-                // Include if status is active, approved, published, or true
-                return status === 'active' ||
-                    status === 'approved' ||
-                    status === 'published' ||
-                    status === true ||
-                    status === 'true' ||
-                    !status; // If no status, include it
+            let courseList = response?.course || response?.courses || (Array.isArray(response) ? response : []);
+            const approved = courseList.filter(c => {
+                const s = c.status || c.courseStatus || c.approvalStatus || c.isApproved;
+                return ["active", "approved", "published", true, "true"].includes(s) || !s;
             });
-
-            console.log('Approved courses to set:', approvedCourses);
-            setCourses(approvedCourses);
-            
-            if (approvedCourses.length === 0) {
-                setError('No approved courses available');
-            } else {
-                setError(null);
-            }
-        } catch (error) {
-            console.error("Failed to fetch courses:", error);
-            setCourses([]);
-            setError('Failed to load courses');
-        } finally {
-            setLoadingCourses(false);
-        }
+            setCourses(approved);
+            if (approved.length === 0) setError('No approved courses available');
+            else setError(null);
+        } catch { setCourses([]); setError('Failed to load courses'); }
+        finally { setLoadingCourses(false); }
     };
 
-    // Fetch announcements
     const fetchAnnouncements = async () => {
         try {
             const res = await announcementService.getAnnouncements();
-            console.log('Announcements response:', res);
-            
-            // Handle different response structures
-            let announcementsList = [];
-            if (res && res.announcements) {
-                announcementsList = res.announcements;
-            } else if (res && res.data && res.data.announcements) {
-                announcementsList = res.data.announcements;
-            } else if (Array.isArray(res)) {
-                announcementsList = res;
-            }
-            
-            setAnnouncements(announcementsList);
-        } catch (error) {
-            console.error('Error fetching announcements:', error);
-            setError('Failed to load announcements');
-            setAnnouncements([]);
-        }
+            setAnnouncements(res?.announcements || []);
+        } catch { setError('Failed to load announcements'); setAnnouncements([]); }
     };
 
-    // Create a new course
-    const handleCreateCourse = async () => {
-        if (!newCourseTitle.trim()) {
-            alert('Please enter a course title');
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const res = await courseService.createCourse({
-                title: newCourseTitle.trim(),
-                description: newCourseDescription.trim() || 'No description provided'
-            });
-
-            console.log('Course created:', res);
-
-            // Refresh courses
-            await fetchCourses();
-
-            // Reset form
-            setNewCourseTitle('');
-            setNewCourseDescription('');
-            setShowCreateCourse(false);
-
-            alert('Course created successfully!');
-        } catch (error) {
-            console.error('Error creating course:', error);
-            alert('Failed to create course. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Create announcement
     const handleCreateAnnouncement = async () => {
-        if (!selectedCourse) {
-            alert("Please select a course");
-            return;
-        }
-
-        if (!title.trim() || !body.trim()) {
-            alert("Please fill all fields");
-            return;
-        }
-
+        if (!selectedCourse || !title.trim() || !body.trim()) { alert("Please fill all fields"); return; }
         setIsLoading(true);
         try {
-            await announcementService.createAnnouncement({
-                title: title.trim(),
-                body: body.trim(),
-                course: selectedCourse,
-            });
-
-            // Reset form
-            setTitle("");
-            setBody("");
-            setSelectedCourse("");
-
-            // Refresh announcements
+            await announcementService.createAnnouncement({ title: title.trim(), body: body.trim(), course: selectedCourse });
+            setTitle(""); setBody(""); setSelectedCourse("");
             await fetchAnnouncements();
-            alert('Announcement created successfully!');
-        } catch (error) {
-            console.error('Error creating announcement:', error);
-            alert('Failed to create announcement. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
+        } catch { alert('Failed to create announcement.'); }
+        finally { setIsLoading(false); }
     };
 
-    // Initial data fetch
     useEffect(() => {
-        const fetchData = async () => {
+        const init = async () => {
             setIsLoading(true);
             await Promise.all([fetchCourses(), fetchAnnouncements()]);
             setIsLoading(false);
         };
-        fetchData();
+        init();
     }, []);
 
-    // Loading state
-    if ((isLoading || loadingCourses) && announcements.length === 0 && courses.length === 0) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <p className="text-text-secondary">Loading...</p>
-            </div>
-        );
-    }
+    if ((isLoading || loadingCourses) && announcements.length === 0 && courses.length === 0)
+        return <div className="flex justify-center items-center h-64"><p className="text-text-secondary">Loading...</p></div>;
 
     return (
         <div className="grid lg:grid-cols-3 gap-6">
-            {/* Announcements List */}
             <div className="lg:col-span-2 space-y-4">
-                <div className="flex justify-between items-center mb-4">
-                    {/* <h2 className="text-h2 text-text-primary">Announcements</h2> */}
-                    <span className="text-caption text-text-secondary">
-                        {announcements.length} total
-                    </span>
-                </div>
-
-                {announcements.length > 0 ? (
-                    announcements.map((a) => (
-                        <Card key={a._id} className="hover:shadow-md transition-shadow">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Megaphone size={16} className="text-primary" />
-                                <p className="text-body-lg text-text-primary font-medium">
-                                    {a.title}
-                                </p>
-                            </div>
-                            <p className="text-caption text-text-secondary mb-2">
-                                {a.course?.title || "General"} ·{" "}
-                                {new Date(a.createdAt).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                })}
-                            </p>
-                            <p className="text-body text-text-secondary">
-                                {a.body}
-                            </p>
-                        </Card>
-                    ))
-                ) : (
-                    <Card>
-                        <div className="text-center py-8">
-                            <Megaphone size={48} className="text-gray-300 mx-auto mb-3" />
-                            <p className="text-text-secondary mb-2">No announcements yet</p>
-                            <p className="text-caption text-text-secondary">
-                                Create your first announcement using the form on the right
-                            </p>
-                        </div>
+                <span className="text-caption text-text-secondary">{announcements.length} total</span>
+                {announcements.length > 0 ? announcements.map((a) => (
+                    <Card key={a._id} className="hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-1"><Megaphone size={16} className="text-primary" /><p className="text-body-lg text-text-primary font-medium">{a.title}</p></div>
+                        <p className="text-caption text-text-secondary mb-2">{a.course?.title || "General"} · {new Date(a.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                        <p className="text-body text-text-secondary">{a.body}</p>
                     </Card>
-                )}
+                )) : <Card><div className="text-center py-8"><Megaphone size={48} className="text-gray-300 mx-auto mb-3" /><p className="text-text-secondary">No announcements yet</p></div></Card>}
             </div>
-
-            {/* Create Announcement Form */}
             <Card>
-                <h3 className="text-h3 text-text-primary mb-3">
-                    New Announcement
-                </h3>
-
-                {/* Course Selection or Create */}
+                <h3 className="text-h3 text-text-primary mb-3">New Announcement</h3>
                 {courses.length === 0 ? (
-                    <div className="mb-4">
-                        <div className="text-yellow-600 p-3 bg-yellow-50 rounded mb-3">
-                            <p className="font-medium">⚠️ No courses available</p>
-                            <p className="text-sm mt-1">You need to create a course first.</p>
-                        </div>
-
-                        {!showCreateCourse ? (
-                            <Button
-                                full
-                                onClick={() => setShowCreateCourse(true)}
-                                variant="outline"
-                            >
-                                <Plus size={16} className="mr-2" />
-                                Create Course
-                            </Button>
-                        ) : (
-                            <div className="border rounded p-3 space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <h4 className="font-medium">Create New Course</h4>
-                                    <button
-                                        onClick={() => setShowCreateCourse(false)}
-                                        className="text-gray-500 hover:text-gray-700"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-
-                                <Input
-                                    label="Course Title"
-                                    value={newCourseTitle}
-                                    onChange={(e) => setNewCourseTitle(e.target.value)}
-                                    placeholder="Enter course title"
-                                    disabled={isLoading}
-                                />
-
-                                <Input
-                                    label="Description (Optional)"
-                                    value={newCourseDescription}
-                                    onChange={(e) => setNewCourseDescription(e.target.value)}
-                                    placeholder="Enter course description"
-                                    disabled={isLoading}
-                                />
-
-                                <Button
-                                    full
-                                    onClick={handleCreateCourse}
-                                    disabled={isLoading || !newCourseTitle.trim()}
-                                >
-                                    {isLoading ? 'Creating...' : 'Create Course'}
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+                    <div className="text-yellow-600 p-3 bg-yellow-50 rounded mb-3"><p className="font-medium">⚠️ No courses available</p></div>
                 ) : (
                     <>
-                        <select
-                            className="w-full border border-gray-300 p-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                            value={selectedCourse}
-                            onChange={(e) => setSelectedCourse(e.target.value)}
-                            disabled={isLoading}
-                        >
+                        <select className="w-full border border-gray-300 p-2 rounded mb-3" value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)} disabled={isLoading}>
                             <option value="">Select Course</option>
-                            {courses.map((course) => (
-                                <option key={course._id || course.id} value={course._id || course.id}>
-                                    {course.title}
-                                </option>
-                            ))}
+                            {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
                         </select>
-
-                        <Input
-                            label="Title"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Announcement title"
-                            disabled={isLoading}
-                        />
-
-                        <Input
-                            label="Message"
-                            as="textarea"
-                            rows={4}
-                            value={body}
-                            onChange={(e) => setBody(e.target.value)}
-                            placeholder="Write your announcement..."
-                            disabled={isLoading}
-                        />
-
-                        <Button
-                            full
-                            onClick={handleCreateAnnouncement}
-                            disabled={isLoading || !selectedCourse || !title.trim() || !body.trim()}
-                            className="mt-2"
-                        >
+                        <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" disabled={isLoading} />
+                        <Input label="Message" as="textarea" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write your announcement..." disabled={isLoading} />
+                        <Button full onClick={handleCreateAnnouncement} disabled={isLoading || !selectedCourse || !title.trim() || !body.trim()} className="mt-2">
                             {isLoading ? 'Creating...' : 'Post Announcement'}
                         </Button>
                     </>
@@ -1888,15 +1191,15 @@ export default function InstructorDashboard() {
 
     const renderPage = () => {
         switch (active) {
-            case "dashboard": return <Dashboard />;
-            case "create": return <CreateCourse onCreated={() => setActive("manage")} />;
-            case "manage": return <ManageCourses />;
-            case "assignments": return <ManageAssignments />;
-            case "quizzes": return <ManageQuizzes />;
-            case "progress": return <StudentProgress />;
-            case "announcements": return <Announcements />;
-            case "analytics": return <CourseAnalytics />;
-            default: return <Dashboard />;
+            case "dashboard":    return <Dashboard />;
+            case "create":       return <CreateCourse onCreated={() => setActive("manage")} />;
+            case "manage":       return <ManageCourses />;
+            case "assignments":  return <ManageAssignments />;
+            case "quizzes":      return <ManageQuizzes />;
+            case "progress":     return <StudentProgress />;
+            case "announcements":return <Announcements />;
+            case "analytics":    return <CourseAnalytics />;
+            default:             return <Dashboard />;
         }
     };
 

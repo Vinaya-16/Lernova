@@ -48,7 +48,7 @@ export default function InstructorSignup() {
                     </span>
                     <h1 className="text-[40px] lg:text-[52px] font-extrabold leading-tight tracking-tight text-text-primary">
                         Start Teaching<br />
-                        <span className="bg-primary-gradient bg-clip-text text-transparent">with Skillio</span>
+                        <span className="bg-primary-gradient bg-clip-text text-transparent">with Lernova</span>
                     </h1>
                 </div>
             </div>
@@ -58,7 +58,7 @@ export default function InstructorSignup() {
                     <Link to="/courses" className="text-caption font-medium text-text-secondary hover:text-primary">← Back to Home</Link>
 
                     <div className="mt-5 mb-7">
-                        <h2 className="text-h2 bg-primary-gradient bg-clip-text text-transparent inline-block">Skillio</h2>
+                        <h2 className="text-h2 bg-primary-gradient bg-clip-text text-transparent inline-block">Lernova</h2>
                         <p className="text-caption text-text-secondary mt-1">Create your instructor account</p>
                     </div>
 
