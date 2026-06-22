@@ -17,7 +17,11 @@ import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
 import * as discussionService from "../services/discussionService.js";
+<<<<<<< HEAD
 import { studentService } from "../services/studentService.js";
+=======
+import * as reviewService from "../services/reviewService.js";
+>>>>>>> 32e3d344596ee8658f95fbb6bbb4f5ebe41d7145
 import {
     quizzes as mockQuizzes, certificates, reviews, discussions,
     notifications as mockNotifications, learningStreak,
@@ -1369,38 +1373,187 @@ function Notifications() {
 }
 
 // ── Course Reviews ────────────────────────────────────────────────────────
-function CourseReviews() {
+function CourseReviews({ enrolledCourses = [] }) {
+    const [reviewsList, setReviewsList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedCourse, setSelectedCourse] = useState("");
     const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const fetchReviews = async () => {
+        try {
+            setLoading(true);
+            const res = await reviewService.getReviews();
+            setReviewsList(res.reviews || []);
+        } catch (err) {
+            console.error("Failed to fetch reviews:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
+    }, []);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!selectedCourse) {
+            setError("Please select a course to review.");
+            return;
+        }
+        if (!comment.trim()) {
+            setError("Please write a comment.");
+            return;
+        }
+
+        setSubmitting(true);
+        setError("");
+        setSuccess("");
+
+        try {
+            await reviewService.addReview({
+                courseId: selectedCourse,
+                rating,
+                comment: comment.trim()
+            });
+            setSuccess("Review submitted successfully!");
+            setComment("");
+            setSelectedCourse("");
+            setRating(5);
+            fetchReviews();
+            setTimeout(() => setSuccess(""), 3000);
+        } catch (err) {
+            console.error(err);
+            setError(err.response?.data?.message || "Failed to submit review.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-                {reviews.map((r) => (
-                    <Card key={r.id}>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <Avatar name={r.student} size={32} />
-                                <div><p className="text-body-lg text-text-primary">{r.student}</p><p className="text-caption text-text-secondary">{r.course}</p></div>
+                <h3 className="text-h3 text-text-primary mb-2">Student Reviews</h3>
+                {loading ? (
+                    <p className="text-caption text-text-secondary">Loading reviews...</p>
+                ) : reviewsList.length === 0 ? (
+                    <EmptyState
+                        icon={Star}
+                        title="No reviews yet"
+                        sub="Be the first to review a course on Lernova."
+                    />
+                ) : (
+                    reviewsList.map((r) => (
+                        <Card key={r._id}>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Avatar name={r.studentId?.name || "Student"} size={32} />
+                                    <div>
+                                        <p className="text-body-lg font-semibold text-text-primary">
+                                            {r.studentId?.name || "Student"}
+                                        </p>
+                                        <p className="text-caption text-text-secondary">
+                                            reviewed {r.courseId?.title || "Unknown Course"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                            key={i}
+                                            size={14}
+                                            className={
+                                                i < r.rating
+                                                    ? "text-warning fill-warning"
+                                                    : "text-border-light"
+                                            }
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />)}
+                            <p className="text-body text-text-primary">{r.comment}</p>
+                            <p className="text-caption text-text-secondary mt-2">
+                                {new Date(r.createdAt).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric"
+                                })}
+                            </p>
+                        </Card>
+                    ))
+                )}
+            </div>
+            <div>
+                <Card className="sticky top-6">
+                    <h3 className="text-h3 text-text-primary mb-3">Leave a Review</h3>
+                    {error && (
+                        <p className="text-caption text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 mb-3">
+                            {error}
+                        </p>
+                    )}
+                    {success && (
+                        <p className="text-caption text-green-600 bg-green-50 p-3 rounded-xl border border-green-100 mb-3">
+                            {success}
+                        </p>
+                    )}
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <Input
+                            label="Select Course"
+                            as="select"
+                            value={selectedCourse}
+                            onChange={(e) => setSelectedCourse(e.target.value)}
+                            disabled={submitting}
+                        >
+                            <option value="">Choose an enrolled course...</option>
+                            {enrolledCourses.map((c) => (
+                                <option key={c._id} value={c._id}>
+                                    {c.title}
+                                </option>
+                            ))}
+                        </Input>
+                        <div>
+                            <label className="text-caption font-semibold text-text-secondary mb-2 block">
+                                Rating
+                            </label>
+                            <div className="flex items-center gap-1 mb-2">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <button
+                                        type="button"
+                                        key={i}
+                                        onClick={() => setRating(i + 1)}
+                                        disabled={submitting}
+                                    >
+                                        <Star
+                                            size={24}
+                                            className={
+                                                i < rating
+                                                    ? "text-warning fill-warning cursor-pointer"
+                                                    : "text-border-light cursor-pointer"
+                                            }
+                                        />
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <p className="text-body text-text-secondary">{r.comment}</p>
-                    </Card>
-                ))}
+                        <Input
+                            as="textarea"
+                            rows={4}
+                            label="Your Review"
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="Share your experience with this course..."
+                            disabled={submitting}
+                        />
+                        <Button type="submit" full disabled={submitting || !selectedCourse || !comment.trim()}>
+                            {submitting ? "Submitting..." : "Submit Review"}
+                        </Button>
+                    </form>
+                </Card>
             </div>
-            <Card>
-                <h3 className="text-h3 text-text-primary mb-3">Leave a Review</h3>
-                <div className="flex items-center gap-1 mb-4">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <button key={i} onClick={() => setRating(i + 1)}>
-                            <Star size={22} className={i < rating ? "text-warning fill-warning" : "text-border-light"} />
-                        </button>
-                    ))}
-                </div>
-                <Input as="textarea" rows={4} placeholder="Share your experience…" />
-                <Button full>Submit Review</Button>
-            </Card>
         </div>
     );
 }
@@ -1622,7 +1775,7 @@ export default function StudentDashboard() {
             case "quizzes":      return <Quizzes />;
             case "certificates": return <Certificates />;
             case "notifications":return <Notifications />;
-            case "reviews":      return <CourseReviews />;
+            case "reviews":      return <CourseReviews enrolledCourses={enrolledCourses} />;
             case "discussions":  return <DiscussionForum enrolledCourses={enrolledCourses} />;
             default:             return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} />;
         }

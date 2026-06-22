@@ -6,6 +6,7 @@ import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
 import * as discussionService from "../services/discussionService.js";
 import { studentService } from "../services/studentService.js";
+import * as reviewService from "../services/reviewService.js";
 import {
     LayoutDashboard,
     PlusCircle,
@@ -53,6 +54,7 @@ const navItems = [
     { id: "progress", label: "Student Progress", icon: Users },
     { id: "announcements", label: "Announcements", icon: Megaphone },
     { id: "discussions", label: "Discussion Forum", icon: MessageSquare },
+    { id: "reviews", label: "Course Reviews", icon: Star },
     { id: "analytics", label: "Course Analytics", icon: BarChart3 },
 ];
 
@@ -2027,8 +2029,126 @@ function DiscussionForum() {
     );
 }
 
+// ── Course Reviews ────────────────────────────────────────────────────────
+function CourseReviews() {
+    const [reviewsList, setReviewsList] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchReviews = async () => {
+        try {
+            setLoading(true);
+            const res = await reviewService.getInstructorReviews();
+            setReviewsList(res.reviews || []);
+        } catch (err) {
+            console.error("Failed to fetch instructor reviews:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
+    }, []);
+
+    // Group reviews by course
+    const grouped = reviewsList.reduce((acc, r) => {
+        const courseId = r.courseId?._id || "unknown";
+        const courseTitle = r.courseId?.title || "Unknown Course";
+        if (!acc[courseId]) {
+            acc[courseId] = {
+                title: courseTitle,
+                items: []
+            };
+        }
+        acc[courseId].items.push(r);
+        return acc;
+    }, {});
+
+    if (loading) {
+        return <p className="text-body text-text-secondary">Loading reviews...</p>;
+    }
+
+    if (reviewsList.length === 0) {
+        return (
+            <EmptyState
+                icon={Star}
+                title="No reviews yet"
+                sub="Reviews left by students for your courses will appear here."
+            />
+        );
+    }
+
+    return (
+        <div className="space-y-6 max-w-4xl">
+            {Object.entries(grouped).map(([courseId, group], idx) => (
+                <div key={courseId}>
+                    {idx > 0 && <hr className="border-border-light my-8" />}
+                    <h3 className="text-h3 text-text-primary mb-4 flex items-center gap-2">
+                        <BookOpen size={20} className="text-primary" />
+                        {group.title}
+                    </h3>
+                    <div className="space-y-4">
+                        {group.items.map((r) => (
+                            <Card key={r._id} className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <Avatar name={r.studentId?.name || "Student"} size={36} />
+                                        <div>
+                                            <p className="text-body font-semibold text-text-primary">
+                                                {r.studentId?.name || "Student"}
+                                            </p>
+                                            <p className="text-caption text-text-secondary">
+                                                reviewed on {new Date(r.createdAt).toLocaleDateString("en-IN", {
+                                                    day: "numeric",
+                                                    month: "short",
+                                                    year: "numeric"
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <Star
+                                                key={i}
+                                                size={14}
+                                                className={
+                                                    i < r.rating
+                                                        ? "text-warning fill-warning"
+                                                        : "text-border-light"
+                                                }
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-body text-text-primary pl-12">{r.comment}</p>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // ── Course Analytics ─────────────────────────────────────────────────────
 function CourseAnalytics() {
+    const [reviewsList, setReviewsList] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchReviews = async () => {
+            try {
+                const res = await reviewService.getInstructorReviews();
+                setReviewsList(res.reviews || []);
+            } catch (err) {
+                console.error("Failed to fetch reviews for analytics:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchReviews();
+    }, []);
+
     return (
         <div className="space-y-6">
             <div className="grid sm:grid-cols-3 gap-4">
@@ -2038,21 +2158,29 @@ function CourseAnalytics() {
             </div>
             <Card>
                 <h3 className="text-h3 text-text-primary mb-4">Course Reviews</h3>
-                <div className="space-y-3">
-                    {reviews.map((r) => (
-                        <div key={r.id} className="border-b border-border-light last:border-0 pb-3 last:pb-0">
-                            <div className="flex items-center justify-between">
-                                <p className="text-body text-text-primary">{r.student} — {r.course}</p>
-                                <div className="flex items-center gap-0.5">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                        <Star key={i} size={13} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />
-                                    ))}
+                {loading ? (
+                    <p className="text-caption text-text-secondary">Loading reviews...</p>
+                ) : reviewsList.length === 0 ? (
+                    <p className="text-body text-text-secondary">No reviews yet for your courses.</p>
+                ) : (
+                    <div className="space-y-3">
+                        {reviewsList.map((r) => (
+                            <div key={r._id} className="border-b border-border-light last:border-0 pb-3 last:pb-0">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-body text-text-primary">
+                                        {r.studentId?.name || "Student"} — {r.courseId?.title || "Unknown Course"}
+                                    </p>
+                                    <div className="flex items-center gap-0.5">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <Star key={i} size={13} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />
+                                        ))}
+                                    </div>
                                 </div>
+                                <p className="text-caption text-text-secondary mt-1">{r.comment}</p>
                             </div>
-                            <p className="text-caption text-text-secondary mt-1">{r.comment}</p>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </Card>
         </div>
     );
@@ -2072,6 +2200,7 @@ export default function InstructorDashboard() {
             case "progress": return <StudentProgress />;
             case "announcements": return <Announcements />;
             case "discussions": return <DiscussionForum />;
+            case "reviews": return <CourseReviews />;
             case "analytics": return <CourseAnalytics />;
             default: return <Dashboard />;
         }
