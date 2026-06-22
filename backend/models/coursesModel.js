@@ -58,7 +58,8 @@ const CourseSchema = new mongoose.Schema(
                 "Business",
                 "Finance",
                 "Photography",
-                "Personal Development"
+                "Personal Development",
+                "Marketing"
             ],
             required: true,
         },

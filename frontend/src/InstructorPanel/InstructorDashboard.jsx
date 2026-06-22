@@ -130,6 +130,7 @@ function CreateCourse({ onCreated }) {
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState("");
     const [loading, setLoading] = useState(false);
+    const [isFree, setIsFree] = useState(false);
 
     const [image, setImage] = useState("");
     const [language, setLanguage] = useState("English");
@@ -142,21 +143,39 @@ function CreateCourse({ onCreated }) {
 
         try {
             const categoryMap = [
-                "Web Development", "Mobile Development", "Programming", "Data Science",
-                "Artificial Intelligence", "Cyber Security", "Cloud Computing", "DevOps",
-                "UI/UX Design", "Graphic Design", "Digital Marketing", "Business",
-                "Finance", "Photography", "Personal Development"
+                "Web Development",
+                "Mobile Development",
+                "Programming",
+                "Data Science",
+                "Artificial Intelligence",
+                "Cyber Security",
+                "Cloud Computing",
+                "DevOps",
+                "UI/UX Design",
+                "Graphic Design",
+                "Digital Marketing",
+                "Business",
+                "Finance",
+                "Photography",
+                "Personal Development",
+                "Marketing"
             ];
 
             const courseData = {
                 title, category: categoryMap[category] || category, description,
-                price: parseFloat(price) || 0, image, language, complexity, duration,
+                price: isFree ? 0 : (parseFloat(price) || 0),
+                image, language, complexity, duration,
             };
 
             const response = await courseService.createCourse(courseData);
-            setTitle(""); setCategory("Web Development"); setDescription("");
-            setPrice(""); setImage(""); setLanguage("English");
-            setComplexity("Beginner"); setDuration("8 weeks");
+            setTitle("");
+            setCategory("Web Development");
+            setDescription("");
+            setPrice("");
+            setImage("");
+            setLanguage("English");
+            setComplexity("Beginner");
+            setDuration("8 weeks");
 
             if (onCreated) onCreated(response.course);
             alert("Course created successfully! Waiting for approval");
@@ -172,12 +191,65 @@ function CreateCourse({ onCreated }) {
             <form onSubmit={submit}>
                 <Input label="Course Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Advanced React Patterns" required />
                 <Input label="Category" as="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                    {["Web Development", "Design", "Data Science", "Marketing", "Photography", "Business"].map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                    ))}
+                    {["Web Development",
+                        "Mobile Development",
+                        "Programming",
+                        "Data Science",
+                        "Artificial Intelligence",
+                        "Cyber Security",
+                        "Cloud Computing",
+                        "DevOps",
+                        "UI/UX Design",
+                        "Graphic Design",
+                        "Digital Marketing",
+                        "Business",
+                        "Finance",
+                        "Photography",
+                        "Personal Development",
+                        "Marketing"].map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
                 </Input>
                 <Input label="Description" as="textarea" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will students learn?" />
-                <Input label="Price (USD)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="49" />
+                {/* <Input label="Price (USD)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="49" /> */}
+
+                <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="checkbox"
+                            id="isFree"
+                            checked={isFree}
+                            onChange={(e) => {
+                                setIsFree(e.target.checked);
+                                if (e.target.checked) {
+                                    setPrice("0");
+                                } else {
+                                    setPrice("");
+                                }
+                            }}
+                            className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                        />
+                        <label htmlFor="isFree" className="text-sm font-medium text-text-primary">
+                            Make this course free
+                        </label>
+                    </div>
+
+                    <Input
+                        label="Price (USD)"
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="49"
+                        disabled={isFree}
+                        className={isFree ? "opacity-50 cursor-not-allowed" : ""}
+                    />
+                    {isFree && (
+                        <p className="text-sm text-green-600 -mt-2">
+                            This course will be free (price set to $0)
+                        </p>
+                    )}
+                </div>
+
                 <Input label="Course Thumbnail URL (Optional)" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://example.com/course-image.jpg" />
                 <Input label="Language" as="select" value={language} onChange={(e) => setLanguage(e.target.value)}>
                     <option value="English">English</option>
@@ -352,7 +424,22 @@ function CourseEditor({ course, onBack }) {
                         <div>
                             <label className="block mb-1 font-medium">Category</label>
                             <select className="w-full border rounded-lg p-2" value={category} onChange={(e) => setCategory(e.target.value)}>
-                                {["Frontend", "Backend", "Software", "IT", "Design"].map(o => <option key={o} value={o}>{o}</option>)}
+                                {["Web Development",
+                                    "Mobile Development",
+                                    "Programming",
+                                    "Data Science",
+                                    "Artificial Intelligence",
+                                    "Cyber Security",
+                                    "Cloud Computing",
+                                    "DevOps",
+                                    "UI/UX Design",
+                                    "Graphic Design",
+                                    "Digital Marketing",
+                                    "Business",
+                                    "Finance",
+                                    "Photography",
+                                    "Personal Development",
+                                    "Marketing"].map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
                         </div>
                         <div><label className="block mb-1 font-medium">Description</label><textarea rows={5} className="w-full border rounded-lg p-2" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
@@ -1092,14 +1179,14 @@ function Announcements() {
             if (!userData) {
                 return { role: 'student', isInstructor: false };
             }
-            
+
             const user = JSON.parse(userData);
             let role = user.role || user.userType || user.accountType || user.type;
-            
+
             if (!role) {
                 role = localStorage.getItem('userRole') || localStorage.getItem('role');
             }
-            
+
             if (!role) {
                 const token = localStorage.getItem('token');
                 if (token) {
@@ -1118,9 +1205,9 @@ function Announcements() {
                     }
                 }
             }
-            
+
             const isInstructor = role === 'instructor' || role === 'admin' || role === 'teacher';
-            
+
             return {
                 ...user,
                 _id: user._id || user.id || user.userId,
@@ -1142,9 +1229,9 @@ function Announcements() {
         try {
             setLoadingCourses(true);
             const response = await courseService.getMyCourses();
-            
+
             let courseList = response?.course || response?.courses || (Array.isArray(response) ? response : []);
-            
+
             if (courseList.length > 0) {
                 setHasInstructorCourses(true);
                 if (!currentUser.isInstructor) {
@@ -1154,7 +1241,7 @@ function Announcements() {
                     window.location.reload();
                 }
             }
-            
+
             const approved = courseList.filter(c => {
                 const s = c.status || c.courseStatus || c.approvalStatus || c.isApproved;
                 return ["active", "approved", "published", true, "true"].includes(s) || !s;
@@ -1175,13 +1262,13 @@ function Announcements() {
         try {
             let res;
             const isInstructor = currentUser.isInstructor || hasInstructorCourses;
-            
+
             if (isInstructor) {
                 res = await announcementService.getMyAnnouncements();
             } else {
                 res = await announcementService.getAnnouncements();
             }
-            
+
             setAnnouncements(res?.announcements || []);
         } catch (error) {
             console.error('Error fetching announcements:', error);
@@ -1360,7 +1447,7 @@ function Announcements() {
                             <Megaphone size={48} className="text-gray-300 mx-auto mb-3" />
                             <p className="text-text-secondary mb-2">No announcements yet</p>
                             <p className="text-caption text-text-secondary">
-                                {finalIsInstructor 
+                                {finalIsInstructor
                                     ? 'Create your first announcement using the form on the right'
                                     : 'Check back later for announcements from your instructors'}
                             </p>
@@ -1371,7 +1458,7 @@ function Announcements() {
 
             <Card>
                 <h3 className="text-h3 text-text-primary mb-3">New Announcement</h3>
-                
+
                 {!finalIsInstructor ? (
                     <div className="text-yellow-600 p-3 bg-yellow-50 rounded">
                         <p className="font-medium">Only instructors can create announcements</p>
@@ -1519,15 +1606,15 @@ export default function InstructorDashboard() {
 
     const renderPage = () => {
         switch (active) {
-            case "dashboard":    return <Dashboard />;
-            case "create":       return <CreateCourse onCreated={() => setActive("manage")} />;
-            case "manage":       return <ManageCourses />;
-            case "assignments":  return <ManageAssignments />;
-            case "quizzes":      return <ManageQuizzes />;
-            case "progress":     return <StudentProgress />;
-            case "announcements":return <Announcements />;
-            case "analytics":    return <CourseAnalytics />;
-            default:             return <Dashboard />;
+            case "dashboard": return <Dashboard />;
+            case "create": return <CreateCourse onCreated={() => setActive("manage")} />;
+            case "manage": return <ManageCourses />;
+            case "assignments": return <ManageAssignments />;
+            case "quizzes": return <ManageQuizzes />;
+            case "progress": return <StudentProgress />;
+            case "announcements": return <Announcements />;
+            case "analytics": return <CourseAnalytics />;
+            default: return <Dashboard />;
         }
     };
 
