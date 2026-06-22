@@ -17,6 +17,7 @@ import { assignmentService } from "../services/assignmentSubmission.js";
 import * as announcementService from "../services/announcementService.js";
 import { quizService } from "../services/quizService.js";
 import * as discussionService from "../services/discussionService.js";
+import { studentService } from "../services/studentService.js";
 import {
     quizzes as mockQuizzes, certificates, reviews, discussions,
     notifications as mockNotifications, learningStreak,
@@ -474,41 +475,206 @@ function CourseDetails({ course, onBack, onPlay, enrolledIds, onEnrolled }) {
 
 // ── My Courses ────────────────────────────────────────────────────────────
 function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
-    if (loading) return <p className="text-body text-text-secondary">Loading your courses…</p>;
-    if (enrolledCourses.length === 0) return (
-        <div className="flex flex-col items-center text-center py-12">
-            <p className="text-h3 text-text-primary">No courses yet</p>
-            <p className="text-body text-text-secondary mt-1 max-w-sm">Browse courses and enroll to start learning.</p>
-        </div>
-    );
+    const [localProgress, setLocalProgress] = useState({});
+    const [loadingProgress, setLoadingProgress] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Load progress for all enrolled courses when component mounts
+    useEffect(() => {
+        const loadAllProgress = async () => {
+            if (!enrolledCourses || enrolledCourses.length === 0) {
+                setIsLoading(false);
+                return;
+            }
+
+            setIsLoading(true);
+            const progressMap = {};
+            const loadingMap = {};
+
+            for (const course of enrolledCourses) {
+                const courseId = course._id || course.id;
+                if (!courseId) continue;
+
+                loadingMap[courseId] = true;
+                setLoadingProgress(prev => ({ ...prev, [courseId]: true }));
+
+                try {
+                    const response = await studentService.getCourseProgress(courseId);
+                    if (response.success && response.enrollment) {
+                        progressMap[courseId] = {
+                            progress: response.enrollment.progress || 0,
+                            completedVideos: response.enrollment.completedVideos || [],
+                            status: response.enrollment.status || 'Not Started'
+                        };
+                        console.log(`📚 Loaded progress for ${course.title}: ${response.enrollment.progress}%`);
+                    } else {
+                        progressMap[courseId] = {
+                            progress: 0,
+                            completedVideos: [],
+                            status: 'Not Started'
+                        };
+                    }
+                } catch (error) {
+                    console.error(`❌ Error loading progress for course ${course.title}:`, error);
+                    progressMap[courseId] = {
+                        progress: 0,
+                        completedVideos: [],
+                        status: 'Not Started'
+                    };
+                } finally {
+                    loadingMap[courseId] = false;
+                    setLoadingProgress(prev => ({ ...prev, [courseId]: false }));
+                }
+            }
+
+            setLocalProgress(progressMap);
+            setIsLoading(false);
+        };
+
+        loadAllProgress();
+    }, [enrolledCourses]);
+
+    // Handle progress update from CoursePlayer
+    const handleProgressUpdate = (courseId, newProgress) => {
+        setLocalProgress(prev => ({
+            ...prev,
+            [courseId]: {
+                ...prev[courseId],
+                progress: newProgress,
+                status: newProgress === 100 ? 'Completed' : 'In Progress'
+            }
+        }));
+    };
+
+    if (loading || isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                <p className="text-body text-text-secondary">Loading your courses...</p>
+            </div>
+        );
+    }
+
+    if (!enrolledCourses || enrolledCourses.length === 0) {
+        return (
+            <div className="flex flex-col items-center text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                    <BookOpen size={32} className="text-gray-400" />
+                </div>
+                <p className="text-h3 text-text-primary">No courses yet</p>
+                <p className="text-body text-text-secondary mt-1 max-w-sm">Browse courses and enroll to start learning.</p>
+                <Button className="mt-4" variant="outline" onClick={() => window.location.href = '/browse'}>
+                    Browse Courses
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">
             {enrolledCourses.map((c) => {
-                const prog = c.progress || 0;
+                const courseId = c._id || c.id;
+                const progressData = localProgress[courseId] || { progress: 0, status: 'Not Started' };
+                const prog = progressData.progress || 0;
                 const statusTone = prog === 100 ? "success" : prog > 0 ? "info" : "warning";
                 const statusLabel = prog === 100 ? "Completed" : prog > 0 ? "In Progress" : "Not Started";
+                const isLoadingProgress = loadingProgress[courseId];
+
+                // Calculate video count
+                const videoCount = c.videos?.length || 0;
+                const completedVideoCount = progressData.completedVideos?.length || 0;
+
                 return (
-                    <Card key={c._id || c.id} className="flex items-center gap-4 flex-wrap">
-                        <img src={c.image || "/placeholder-course.jpg"} alt={c.title}
-                            className="w-24 object-cover rounded-xl cursor-pointer shrink-0"
-                            style={{ height: "72px" }} onClick={() => openCourse(c)} />
+                    <Card key={courseId} className="flex items-center gap-4 flex-wrap p-4 hover:shadow-md transition-shadow">
+                        {/* Course Image */}
+                        <div 
+                            className="w-24 h-18 rounded-xl overflow-hidden cursor-pointer shrink-0 bg-gray-100 flex items-center justify-center"
+                            onClick={() => openCourse(c)}
+                        >
+                            {c.image ? (
+                                <img 
+                                    src={c.image} 
+                                    alt={c.title} 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = '/placeholder-course.jpg';
+                                    }}
+                                />
+                            ) : (
+                                <BookOpen size={24} className="text-gray-400" />
+                            )}
+                        </div>
+
+                        {/* Course Info */}
                         <div className="flex-1 min-w-[180px]">
-                            <p className="text-body-lg text-text-primary cursor-pointer hover:text-primary transition-colors" onClick={() => openCourse(c)}>{c.title}</p>
-                            <p className="text-caption text-text-secondary mt-0.5">{c.category} · {c.instructorName?.name || "Instructor"}</p>
+                            <p 
+                                className="text-body-lg text-text-primary cursor-pointer hover:text-primary transition-colors font-medium"
+                                onClick={() => openCourse(c)}
+                            >
+                                {c.title}
+                            </p>
+                            <p className="text-caption text-text-secondary mt-0.5">
+                                {c.category || 'General'} · {c.instructorName?.name || c.instructor?.name || "Instructor"}
+                            </p>
+                            
+                            {/* Course Metadata */}
                             <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                {c.complexity && <span className="flex items-center gap-1 text-caption text-text-secondary"><BarChart3 size={12} />{c.complexity}</span>}
-                                {c.language && <span className="flex items-center gap-1 text-caption text-text-secondary"><Globe size={12} />{c.language}</span>}
-                                {c.videos?.length > 0 && <span className="flex items-center gap-1 text-caption text-text-secondary"><PlayCircle size={12} />{c.videos.length} video{c.videos.length !== 1 ? "s" : ""}</span>}
+                                {c.complexity && (
+                                    <span className="flex items-center gap-1 text-caption text-text-secondary">
+                                        <BarChart3 size={12} />{c.complexity}
+                                    </span>
+                                )}
+                                {c.language && (
+                                    <span className="flex items-center gap-1 text-caption text-text-secondary">
+                                        <Globe size={12} />{c.language}
+                                    </span>
+                                )}
+                                {videoCount > 0 && (
+                                    <span className="flex items-center gap-1 text-caption text-text-secondary">
+                                        <PlayCircle size={12} />{completedVideoCount}/{videoCount} videos
+                                    </span>
+                                )}
                             </div>
+
+                            {/* Progress Bar */}
                             <div className="mt-2 max-w-xs">
-                                <ProgressBar value={prog} />
-                                <p className="text-caption text-text-secondary mt-1">{prog}% complete</p>
+                                {isLoadingProgress ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '50%' }} />
+                                        </div>
+                                        <span className="text-caption text-text-secondary">Loading...</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-primary rounded-full transition-all duration-500"
+                                                style={{ width: `${Math.min(prog, 100)}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-caption text-text-secondary font-medium min-w-[40px] text-right">
+                                            {prog}%
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <Badge tone={statusTone}>{statusLabel}</Badge>
-                        <Button className="h-9 px-4 shrink-0" onClick={() => onPlay(c)}>
-                            <PlayCircle size={16} />{prog > 0 ? "Resume" : "Start"}
+
+                        {/* Status Badge */}
+                        <Badge tone={statusTone} className="shrink-0">
+                            {statusLabel}
+                        </Badge>
+
+                        {/* Action Button */}
+                        <Button 
+                            className="h-9 px-4 shrink-0 flex items-center gap-2"
+                            onClick={() => onPlay(c)}
+                            disabled={isLoadingProgress}
+                        >
+                            <PlayCircle size={16} />
+                            {prog > 0 ? "Resume" : "Start"}
                         </Button>
                     </Card>
                 );
@@ -523,30 +689,142 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
     const videos = course.videos || [];
     const [completedIds, setCompletedIds] = useState(new Set());
     const [activeVideo, setActiveVideo] = useState(videos[0] || null);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [loadedProgress, setLoadedProgress] = useState(false);
     const videoRef = useRef(null);
+    const lastUpdateTime = useRef(0);
+
+    // Load saved progress when component mounts
+    useEffect(() => {
+        const loadProgress = async () => {
+            try {
+                console.log('📚 Loading progress for course:', course._id);
+                const response = await studentService.getCourseProgress(course._id);
+                console.log('📚 Full progress response:', response);
+                
+                if (response.success && response.enrollment) {
+                    // Get the completed video IDs as strings
+                    const savedCompleted = response.enrollment.completedVideos || [];
+                    console.log('📚 Saved completed videos:', savedCompleted);
+                    
+                    // Create a Set of completed video IDs (as strings for comparison)
+                    const completedSet = new Set(savedCompleted.map(id => id.toString()));
+                    setCompletedIds(completedSet);
+                    
+                    console.log('✅ Loaded progress:', completedSet.size, 'videos completed');
+                    console.log('✅ Completed video IDs:', Array.from(completedSet));
+                } else {
+                    console.log('ℹ️ No saved progress found, starting fresh');
+                }
+            } catch (error) {
+                console.error('❌ Error loading progress:', error);
+            } finally {
+                setLoadedProgress(true);
+            }
+        };
+        loadProgress();
+    }, [course._id]);
 
     const progress = videos.length > 0 ? Math.round((completedIds.size / videos.length) * 100) : 0;
+
+    // Save progress to backend
+    const saveProgress = async (videoId, watchTime, videoDuration, isComplete = false) => {
+        if (isUpdating) return;
+        
+        try {
+            setIsUpdating(true);
+            console.log('💾 Saving progress for video:', videoId, 'isComplete:', isComplete);
+            
+            const response = await studentService.updateVideoProgress({
+                courseId: course._id,
+                videoId: videoId,
+                watchTime: watchTime || 5,
+                videoDuration: videoDuration || 60,
+                isComplete: isComplete
+            });
+            
+            console.log('✅ Progress saved response:', response);
+            
+            // Update the completedIds set if the video was just completed
+            if (response.success && response.completedVideos) {
+                const newCompletedSet = new Set(response.completedVideos);
+                setCompletedIds(newCompletedSet);
+                console.log('🔄 Updated completed IDs:', Array.from(newCompletedSet));
+            }
+            
+            // Notify parent component about progress update
+            if (onProgressUpdate) {
+                onProgressUpdate(course._id, progress);
+            }
+        } catch (error) {
+            console.error('❌ Error saving progress:', error);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const handleTimeUpdate = () => {
         const vid = videoRef.current;
         if (!vid || !activeVideo) return;
+        
+        const currentTime = Math.floor(vid.currentTime);
+        
+        // Save progress every 5 seconds
+        if (currentTime - lastUpdateTime.current >= 5) {
+            lastUpdateTime.current = currentTime;
+            saveProgress(activeVideo._id, 5, vid.duration || 60);
+        }
+        
+        // Mark as completed when 90% watched
         if (vid.duration && vid.currentTime / vid.duration >= 0.9) {
-            setCompletedIds((prev) => {
-                if (prev.has(activeVideo._id)) return prev;
-                const next = new Set(prev);
-                next.add(activeVideo._id);
-                const newProg = Math.round((next.size / videos.length) * 100);
-                if (onProgressUpdate) onProgressUpdate(course._id, newProg);
-                return next;
-            });
+            const videoIdStr = activeVideo._id.toString();
+            if (!completedIds.has(videoIdStr)) {
+                console.log('🎯 Video reached 90%, marking as completed:', activeVideo.title);
+                saveProgress(activeVideo._id, vid.duration, vid.duration, true);
+                
+                // Update local state immediately
+                setCompletedIds(prev => {
+                    const next = new Set(prev);
+                    next.add(videoIdStr);
+                    return next;
+                });
+                
+                if (onProgressUpdate) onProgressUpdate(course._id, progress);
+            }
         }
     };
 
     const handleEnded = () => {
         if (!activeVideo) return;
+        
+        const videoIdStr = activeVideo._id.toString();
+        if (!completedIds.has(videoIdStr)) {
+            console.log('🎬 Video ended, marking as completed:', activeVideo.title);
+            saveProgress(activeVideo._id, videoRef.current?.duration || 0, videoRef.current?.duration || 60, true);
+            
+            // Update local state immediately
+            setCompletedIds(prev => {
+                const next = new Set(prev);
+                next.add(videoIdStr);
+                return next;
+            });
+            
+            if (onProgressUpdate) onProgressUpdate(course._id, progress);
+        }
+        
+        // Auto-play next video
         const idx = videos.findIndex((v) => v._id === activeVideo._id);
         if (idx < videos.length - 1) setActiveVideo(videos[idx + 1]);
     };
+
+    // Loading state while progress is being loaded
+    if (!loadedProgress) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">
@@ -557,9 +835,17 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                 <div className="lg:col-span-2 space-y-4">
                     <Card className="p-0 overflow-hidden">
                         {activeVideo?.url ? (
-                            <video ref={videoRef} key={activeVideo._id} src={activeVideo.url} controls
+                            <video 
+                                ref={videoRef} 
+                                key={activeVideo._id} 
+                                src={activeVideo.url} 
+                                controls
                                 className="w-full aspect-video bg-gray-900"
-                                onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} />
+                                onTimeUpdate={handleTimeUpdate} 
+                                onEnded={handleEnded}
+                                onPlay={() => console.log('▶️ Playing:', activeVideo.title)}
+                                onPause={() => console.log('⏸️ Paused:', activeVideo.title)}
+                            />
                         ) : (
                             <div className="aspect-video bg-gray-900 flex items-center justify-center text-white">
                                 <PlayCircle size={56} className="opacity-80" />
@@ -568,6 +854,9 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                         <div className="p-5">
                             <p className="text-body-lg text-text-primary">{activeVideo?.title || course.title}</p>
                             <p className="text-caption text-text-secondary mt-1">{course.title}</p>
+                            {isUpdating && (
+                                <p className="text-xs text-text-secondary mt-1">Saving progress...</p>
+                            )}
                         </div>
                     </Card>
                     <Card>
@@ -597,7 +886,8 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                     {videos.length === 0 ? <p className="text-caption text-text-secondary">No videos uploaded yet.</p> : (
                         <div className="space-y-1 max-h-96 overflow-y-auto">
                             {videos.map((v) => {
-                                const isDone = completedIds.has(v._id);
+                                const videoIdStr = v._id.toString();
+                                const isDone = completedIds.has(videoIdStr);
                                 const isActive = activeVideo?._id === v._id;
                                 return (
                                     <button key={v._id} onClick={() => setActiveVideo(v)}

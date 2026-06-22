@@ -24,57 +24,39 @@ const enrollmentSchema = new mongoose.Schema(
       required: true,
     },
     
-    // ==================== PROGRESS TRACKING FIELDS ====================
-    
-    // Overall progress percentage (0-100)
+    // ========== PROGRESS TRACKING FIELDS ==========
     progress: {
       type: Number,
       default: 0,
       min: 0,
       max: 100,
     },
-    
-    // Array of video IDs that the student has completed
     completedVideos: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Course.videos",
       }
     ],
-    
-    // Track video watching progress (for resume functionality)
     videoProgress: {
       type: Map,
-      of: Number, // Store percentage watched for each video (0-100)
+      of: Number,
       default: {},
     },
-    
-    // Last video watched (for resume)
     lastWatchedVideo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Course.videos",
     },
-    
-    // Last activity timestamp
     lastActivity: {
       type: Date,
       default: Date.now,
     },
-    
-    // Course completion date
     completedAt: {
       type: Date,
     },
-    
-    // Total time spent watching (in seconds)
     totalWatchTime: {
       type: Number,
       default: 0,
     },
     
-    // ==================== BILLING DETAILS ====================
-    
-    // Billing Details (only for paid courses)
+    // ========== BILLING DETAILS ==========
     fullName: {
       type: String,
       required: function() {
@@ -117,8 +99,6 @@ const enrollmentSchema = new mongoose.Schema(
         return this.paymentStatus === "paid";
       },
     },
-    
-    // Payment Details (only for paid courses)
     paymentMethod: {
       type: String,
       required: function() {
@@ -137,10 +117,7 @@ const enrollmentSchema = new mongoose.Schema(
   }
 );
 
-// Prevent duplicate enrollment for the same student and course
 enrollmentSchema.index({ studentId: 1, courseId: 1 }, { unique: true });
-
-// Index for faster progress queries
 enrollmentSchema.index({ studentId: 1, progress: 1 });
 enrollmentSchema.index({ courseId: 1, progress: 1 });
 enrollmentSchema.index({ lastActivity: -1 });
