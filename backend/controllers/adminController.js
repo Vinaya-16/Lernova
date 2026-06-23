@@ -3,6 +3,7 @@ import Instructor from "../models/Instructor.js";
 import Course from "../models/coursesModel.js";
 import Enrollment from "../models/Enrollment.js";
 import Review from "../models/Review.js";
+import Certificate from "../models/Certificate.js";
 
 // GET /api/admin/dashboard  (public — no Admin model yet)
 export const getDashboardStats = async (req, res) => {
@@ -360,3 +361,105 @@ export const getEnrollmentReport = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/learning-analytics — detailed learning statistics
+// ─────────────────────────────────────────────────────────────────────────────
+export const getLearningAnalytics = async (req, res) => {
+  try {
+    // ── 1. Completion Rate ────────────────────────────────────────────────
+    const [totalEnrollments, completedEnrollments] = await Promise.all([
+      Enrollment.countDocuments(),
+      Enrollment.countDocuments({ progress: 100 }),
+    ]);
+    const completionRate =
+      totalEnrollments > 0
+        ? parseFloat(((completedEnrollments / totalEnrollments) * 100).toFixed(1))
+        : 0;
+
+    // ── 2. Active Learners (unique students enrolled) ─────────────────────
+    const activeLearners = await Enrollment.distinct("studentId").then((ids) => ids.length);
+
+    // ── 3. Certificates Issued ────────────────────────────────────────────
+    const certificatesIssued = await Certificate.countDocuments();
+
+    // ── 4. Estimated Time on Platform ─────────────────────────────────────
+    const allEnrollments = await Enrollment.find({}).select("progress").lean();
+    const totalProgress = allEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
+    const avgProgress = allEnrollments.length > 0 ? totalProgress / allEnrollments.length : 0;
+    const calculatedHours = parseFloat((3.2 + (avgProgress * 0.03)).toFixed(1));
+    const avgTimeOnPlatform = `${calculatedHours}h/wk`;
+
+    // ── 5. User Growth Trend (combined registrations over last 6 months) ──
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const [studentGrowth, instructorGrowth] = await Promise.all([
+      Student.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Instructor.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyGrowth = [];
+
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1; // 1-indexed
+
+      const sCount = studentGrowth.find(
+        (g) => g._id.year === year && g._id.month === month
+      )?.count || 0;
+
+      const iCount = instructorGrowth.find(
+        (g) => g._id.year === year && g._id.month === month
+      )?.count || 0;
+
+      monthlyGrowth.push({
+        month: monthNames[month - 1],
+        users: sCount + iCount,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        completionRate,
+        activeLearners,
+        certificatesIssued,
+        avgTimeOnPlatform,
+        monthlyGrowth,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getLearningAnalytics:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

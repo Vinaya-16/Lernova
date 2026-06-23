@@ -91,4 +91,20 @@ export const adminService = {
       throw error;
     }
   },
+
+  /**
+   * Fetches platform learning analytics.
+   */
+  getLearningAnalytics: async () => {
+    try {
+      const response = await api.get("/admin/learning-analytics");
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error fetching learning analytics:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };
