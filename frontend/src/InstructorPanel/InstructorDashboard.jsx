@@ -2847,8 +2847,26 @@ export default function InstructorDashboard() {
     const [active, setActive] = useState("dashboard");
     const [hasCourses, setHasCourses] = useState(true);
     const [loading, setLoading] = useState(true);
+    const [notificationCount, setNotificationCount] = useState(0);
+    const [userName, setUserName] = useState("Instructor");
+    const [userRole, setUserRole] = useState("instructor");
 
     useEffect(() => {
+        // Get user data from localStorage
+        const getUserData = () => {
+            try {
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    setUserName(user.name || user.fullName || "Instructor");
+                    setUserRole(user.role || "instructor");
+                }
+            } catch (error) {
+                console.error('Error getting user data:', error);
+            }
+        };
+        getUserData();
+
         const checkCourses = async () => {
             try {
                 const res = await courseService.getMyCourses();
@@ -2861,7 +2879,44 @@ export default function InstructorDashboard() {
             }
         };
         checkCourses();
+
+        // Fetch notification count
+        const fetchNotificationCount = async () => {
+            try {
+                let count = 0;
+                
+                const assignRes = await assignmentService.getMyAssignments();
+                const assignments = assignRes?.assignments || [];
+                for (const assignment of assignments) {
+                    try {
+                        const subRes = await assignmentService.getAssignmentSubmissions(assignment._id);
+                        const subs = subRes?.submissions || [];
+                        const pending = subs.filter(s => s.status === 'pending' || s.status === 'submitted');
+                        count += pending.length;
+                    } catch (err) {
+                        console.log('No submissions for assignment:', assignment._id);
+                    }
+                }
+                
+                try {
+                    const reviewRes = await reviewService.getInstructorReviews();
+                    const reviews = reviewRes?.reviews || [];
+                    count += reviews.length;
+                } catch (err) {
+                    console.log('No reviews data available');
+                }
+
+                setNotificationCount(count);
+            } catch (err) {
+                console.error('Failed to fetch notification count:', err);
+            }
+        };
+        fetchNotificationCount();
     }, []);
+
+    const handleNotificationClick = () => {
+        setActive('discussions');
+    };
 
     const renderPage = () => {
         switch (active) {
@@ -2881,7 +2936,16 @@ export default function InstructorDashboard() {
 
     if (loading) {
         return (
-            <DashboardShell roleLabel="Instructor Panel" navItems={navItems} active={active} onNavigate={setActive} userName="Instructor">
+            <DashboardShell 
+                roleLabel="Instructor Panel" 
+                navItems={navItems} 
+                active={active} 
+                onNavigate={setActive} 
+                userName={userName}
+                userRole={userRole}
+                notificationCount={notificationCount}
+                onNotificationClick={handleNotificationClick}
+            >
                 <div className="flex justify-center items-center h-64">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                 </div>
@@ -2891,14 +2955,32 @@ export default function InstructorDashboard() {
 
     if (!hasCourses) {
         return (
-            <DashboardShell roleLabel="Instructor Panel" navItems={navItems} active={active} onNavigate={setActive} userName="Instructor">
+            <DashboardShell 
+                roleLabel="Instructor Panel" 
+                navItems={navItems} 
+                active={active} 
+                onNavigate={setActive} 
+                userName={userName}
+                userRole={userRole}
+                notificationCount={notificationCount}
+                onNotificationClick={handleNotificationClick}
+            >
                 <EmptyState icon={BookOpen} title="No courses yet" sub="Create your first course to get started." />
             </DashboardShell>
         );
     }
 
     return (
-        <DashboardShell roleLabel="Instructor Panel" navItems={navItems} active={active} onNavigate={setActive} userName="Instructor">
+        <DashboardShell 
+            roleLabel="Instructor Panel" 
+            navItems={navItems} 
+            active={active} 
+            onNavigate={setActive} 
+            userName={userName}
+            userRole={userRole}
+            notificationCount={notificationCount}
+            onNotificationClick={handleNotificationClick}
+        >
             <PageHeader title={navItems.find((n) => n.id === active)?.label || "Dashboard"} />
             {renderPage()}
         </DashboardShell>
