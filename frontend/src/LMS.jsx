@@ -24,12 +24,7 @@ export default function LMS() {
                         Lernova
                     </span>
                    
-                    {/* <div className="flex gap-3 items-center">
-                        <button onClick={() => navigate("/login")} className="text-sm font-semibold text-text-secondary hover:text-primary transition">
-                            Login
-                        </button>
-                        <Button onClick={() => navigate("/signup")} className="h-10 px-5">Sign Up</Button>
-                    </div> */}
+                    
                 </nav>
 
                 <div className="relative z-10 flex-1 flex items-center px-6 sm:px-16 pb-16">
