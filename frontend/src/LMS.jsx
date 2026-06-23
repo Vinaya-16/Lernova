@@ -23,15 +23,7 @@ export default function LMS() {
                     <span className="text-xl font-extrabold bg-primary-gradient bg-clip-text text-transparent">
                         Lernova
                     </span>
-                    <ul className="hidden md:flex gap-10 list-none m-0 p-0">
-                        {NAV_LINKS.map((l) => (
-                            <li key={l}>
-                                <a href="#" className="text-sm font-medium text-text-secondary hover:text-primary transition">
-                                    {l}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
+                   
                     {/* <div className="flex gap-3 items-center">
                         <button onClick={() => navigate("/login")} className="text-sm font-semibold text-text-secondary hover:text-primary transition">
                             Login
