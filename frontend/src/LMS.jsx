@@ -80,33 +80,7 @@ export default function LMS() {
                 </div>
             </div>
 
-            {/* ── FEATURED COURSES ── */}
-            <section className="px-6 sm:px-16 py-16 bg-surface">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-h2 text-text-primary">Featured Courses</h2>
-                    <button onClick={() => navigate("/courses")} className="text-sm font-semibold text-primary">View All</button>
-                </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {featured.map((c) => (
-                        <div key={c.id} className="bg-app rounded-card overflow-hidden shadow-card border border-border-light cursor-pointer hover:shadow-soft transition" onClick={() => navigate("/courses")}>
-                            <img src={c.thumbnail} alt={c.title} className="w-full h-40 object-cover" />
-                            <div className="p-5">
-                                <p className="text-body-lg text-text-primary line-clamp-2">{c.title}</p>
-                                <p className="text-caption text-text-secondary mt-1">{c.instructor}</p>
-                                <div className="flex items-center justify-between mt-3">
-                                    <span className="flex items-center gap-1 text-caption text-text-secondary">
-                                        <Star size={14} className="text-warning fill-warning" /> {c.rating}
-                                    </span>
-                                    <span className="flex items-center gap-1 text-caption text-text-secondary">
-                                        <Users size={14} /> {c.students.toLocaleString()}
-                                    </span>
-                                    <span className="text-h3 text-primary">${c.price}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
+            
 
             {/* ── FOOTER ── */}
             <footer className="bg-gray-900 text-gray-400">
