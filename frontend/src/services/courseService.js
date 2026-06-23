@@ -1,7 +1,8 @@
 // services/courseService.js
 import axios from 'axios';
 
-const API_URL = '/api';
+// Use full URL for development
+const API_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -146,7 +147,6 @@ export const courseService = {
     }
   },
 
-  // ── NEW: Enroll a student into a course ──────────────────────────────
   enrollCourse: async (courseId, enrollmentData = {}) => {
     try {
       const response = await api.post(`/courses/${courseId}/enroll`, enrollmentData);
@@ -157,7 +157,6 @@ export const courseService = {
     }
   },
 
-  // ── NEW: Get all courses a student is enrolled in ────────────────────
   getEnrolledCourses: async () => {
     try {
       const response = await api.get('/courses/enrolled');
@@ -168,4 +167,15 @@ export const courseService = {
     }
   },
 
+  // NEW: Get course analytics for instructor
+  getCourseAnalytics: async () => {
+    try {
+      const response = await api.get('/courses/analytics');
+      console.log('Analytics response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course analytics:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };

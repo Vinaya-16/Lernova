@@ -15,7 +15,9 @@ import studentRoute from "./routes/studentRoute.js";
 import reviewRoute from "./routes/reviewRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 
-// Set DNS resolution order to ipv4first and set public DNS servers to avoid querySrv ECONNREFUSED on Windows
+import certificateRoutes from "./routes/certificateRoutes.js";
+
+
 dns.setDefaultResultOrder("ipv4first");
 try {
   dns.setServers(["8.8.8.8", "8.8.4.4"]);
@@ -23,22 +25,17 @@ try {
   console.warn("Unable to set DNS servers:", error);
 }
 
-// Load environment variables
 dotenv.config();
-
-// Connect to MongoDB Atlas
 connectDB();
 
 const app = express();
 
-// Middlewares
 app.use(cors({
   origin: "*",
   credentials: true
 }));
 app.use(express.json());
 
-// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/instructors", instructorRoutes);
@@ -50,15 +47,13 @@ app.use("/api/discussions", discussionRoute);
 app.use("/api/students", studentRoute);
 app.use("/api/reviews", reviewRoute);
 app.use("/api/admin", adminRoute);
+app.use("/api/certificates", certificateRoutes);
 
-// Root route
 app.get("/", (req, res) => {
   res.send("Lernova Instructor Auth API is running...");
 });
 
-// Port configuration
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

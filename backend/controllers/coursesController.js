@@ -1,6 +1,7 @@
 import coursesModel from "../models/coursesModel.js";
 import Student from "../models/Student.js";
 import Enrollment from "../models/Enrollment.js";
+import Review from "../models/Review.js";
 
 
 export const createCourse = async (req, res) => {
@@ -318,6 +319,126 @@ export const getEnrolledCourses = async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message,
+        });
+    }
+};
+
+export const getCourseAnalytics = async (req, res) => {
+    try {
+        const instructorId = req.user._id;
+
+        // Get all courses taught by this instructor
+        const courses = await coursesModel.find({ instructorId: instructorId });
+        
+        if (courses.length === 0) {
+            return res.status(200).json({
+                success: true,
+                analytics: {
+                    totalCourses: 0,
+                    totalStudents: 0,
+                    totalRevenue: 0,
+                    averageRating: 0,
+                    avgCompletion: 0,
+                    engagementRate: 0,
+                    totalWatchTime: 0,
+                    popularCategories: [],
+                    courseData: []
+                }
+            });
+        }
+
+        const courseIds = courses.map(c => c._id);
+
+        // Get all enrollments for these courses
+        const enrollments = await Enrollment.find({
+            courseId: { $in: courseIds }
+        });
+
+        // Get all reviews for these courses
+        const reviews = await Review.find({
+            courseId: { $in: courseIds }
+        });
+
+        // Calculate analytics
+        const totalStudents = enrollments.length;
+        const totalRevenue = enrollments.reduce((sum, e) => sum + (e.price || 0), 0);
+        const totalWatchTime = enrollments.reduce((sum, e) => sum + (e.totalWatchTime || 0), 0);
+        
+        const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+        const averageRating = reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : 0;
+
+        // Calculate completion
+        const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
+        const avgCompletion = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
+
+        // Calculate engagement (students with > 0 progress)
+        const engagedStudents = enrollments.filter(e => (e.progress || 0) > 0).length;
+        const engagementRate = totalStudents > 0 ? Math.round((engagedStudents / totalStudents) * 100) : 0;
+
+        // Course performance data
+        const courseData = courses.map(c => {
+            const courseEnrollments = enrollments.filter(e => e.courseId.toString() === c._id.toString());
+            const courseReviews = reviews.filter(r => r.courseId.toString() === c._id.toString());
+            const courseRating = courseReviews.length > 0 
+                ? Math.round((courseReviews.reduce((sum, r) => sum + r.rating, 0) / courseReviews.length) * 10) / 10 
+                : 0;
+            const courseProgress = courseEnrollments.length > 0 
+                ? Math.round(courseEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / courseEnrollments.length) 
+                : 0;
+
+            return {
+                id: c._id,
+                title: c.title,
+                category: c.category,
+                students: courseEnrollments.length,
+                revenue: courseEnrollments.reduce((sum, e) => sum + (e.price || 0), 0),
+                rating: courseRating,
+                progress: courseProgress,
+                status: c.status || 'pending',
+                image: c.image || '',
+                watchTime: courseEnrollments.reduce((sum, e) => sum + (e.totalWatchTime || 0), 0),
+                reviews: courseReviews.length
+            };
+        });
+
+        // Sort by students (most popular first)
+        courseData.sort((a, b) => b.students - a.students);
+
+        // Get popular categories
+        const categoryMap = {};
+        courses.forEach(c => {
+            const cat = c.category || 'Other';
+            categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+        });
+        const popularCategories = Object.entries(categoryMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ 
+                name, 
+                count, 
+                percentage: Math.round((count / courses.length) * 100) 
+            }));
+
+        res.status(200).json({
+            success: true,
+            analytics: {
+                totalCourses: courses.length,
+                totalStudents,
+                totalRevenue,
+                averageRating,
+                avgCompletion,
+                engagementRate,
+                totalWatchTime,
+                popularCategories,
+                courseData
+            }
+        });
+    } catch (error) {
+        console.error('Error getting course analytics:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+            stack: error.stack
         });
     }
 };

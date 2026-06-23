@@ -9,6 +9,7 @@ import {
     getAllCourses,
     enrollCourse,
     getEnrolledCourses,
+    getCourseAnalytics
 } from "../controllers/coursesController.js";
 
 import {
@@ -37,5 +38,7 @@ router.post("/:id/enroll", protect, enrollCourse);
 router.post("/:courseId/videos", protect, uploadVideo.single("video"), uploadCourseVideo);
 router.get("/:courseId/videos", protect, getCourseVideos);
 router.delete("/:courseId/videos/:videoId", protect, deleteCourseVideo);
+
+router.get("/analytics", protect, getCourseAnalytics);
 
 export default router;

@@ -2132,53 +2132,328 @@ function CourseReviews() {
 
 // ── Course Analytics ─────────────────────────────────────────────────────
 function CourseAnalytics() {
-    const [reviewsList, setReviewsList] = useState([]);
+    const [analytics, setAnalytics] = useState({
+        totalCourses: 0,
+        totalStudents: 0,
+        totalRevenue: 0,
+        averageRating: 0,
+        avgCompletion: 0,
+        engagementRate: 0,
+        totalWatchTime: 0,
+        popularCategories: [],
+        courseData: []
+    });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchReviews = async () => {
-            try {
-                const res = await reviewService.getInstructorReviews();
-                setReviewsList(res.reviews || []);
-            } catch (err) {
-                console.error("Failed to fetch reviews for analytics:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchReviews();
+        fetchAnalytics();
     }, []);
+
+    const fetchAnalytics = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await courseService.getCourseAnalytics();
+            console.log('📊 Analytics response:', response);
+            
+            if (response.success) {
+                setAnalytics(response.analytics);
+            } else {
+                setError('Failed to load analytics data');
+            }
+        } catch (error) {
+            console.error('❌ Error fetching analytics:', error);
+            setError('Failed to load analytics data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatTime = (seconds) => {
+        if (!seconds) return '0h';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i} className="p-6 animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                        </Card>
+                    ))}
+                </div>
+                <Card className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-text-secondary mt-4">Loading analytics...</p>
+                </Card>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="p-8 text-center">
+                <div className="text-red-500 text-4xl mb-3">⚠️</div>
+                <p className="text-red-500 mb-4">{error}</p>
+                <button 
+                    onClick={fetchAnalytics}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                >
+                    Retry
+                </button>
+            </Card>
+        );
+    }
+
+    if (analytics.totalCourses === 0) {
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard icon={Users} label="Total Students" value="0" accent="primary" />
+                    <StatCard icon={BookOpen} label="Total Courses" value="0" accent="info" />
+                    <StatCard icon={Star} label="Avg Rating" value="0" accent="warning" />
+                    <StatCard icon={BarChart3} label="Completion" value="0%" accent="success" />
+                </div>
+                <Card className="p-12 text-center">
+                    <div className="flex flex-col items-center">
+                        <BarChart3 size={64} className="text-gray-300 mb-4" />
+                        <p className="text-h3 text-text-primary">No Courses Yet</p>
+                        <p className="text-body text-text-secondary mt-2 max-w-md">
+                            Create your first course to start tracking analytics and performance.
+                        </p>
+                        <Button 
+                            className="mt-6"
+                            onClick={() => window.location.href = '/instructor/create'}
+                        >
+                            <PlusCircle size={16} className="mr-2" />
+                            Create Course
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <div className="grid sm:grid-cols-3 gap-4">
-                <StatCard icon={Users} label="Total Enrollments" value={myCourses.reduce((s, c) => s + c.students, 0).toLocaleString()} accent="primary" />
-                <StatCard icon={Star} label="Average Rating" value={(myCourses.reduce((s, c) => s + c.rating, 0) / myCourses.length).toFixed(1)} accent="warning" />
-                <StatCard icon={BarChart3} label="Avg. Completion" value={`${Math.round(myCourses.reduce((s, c) => s + c.progress, 0) / myCourses.length)}%`} accent="success" />
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard 
+                    icon={Users} 
+                    label="Total Students" 
+                    value={analytics.totalStudents.toLocaleString()} 
+                    accent="primary" 
+                />
+                <StatCard 
+                    icon={BookOpen} 
+                    label="Total Courses" 
+                    value={analytics.totalCourses} 
+                    accent="info" 
+                />
+                <StatCard 
+                    icon={Star} 
+                    label="Avg Rating" 
+                    value={analytics.averageRating.toFixed(1)} 
+                    accent="warning" 
+                />
+                <StatCard 
+                    icon={BarChart3} 
+                    label="Completion Rate" 
+                    value={`${analytics.avgCompletion}%`} 
+                    accent="success" 
+                />
             </div>
-            <Card>
-                <h3 className="text-h3 text-text-primary mb-4">Course Reviews</h3>
-                {loading ? (
-                    <p className="text-caption text-text-secondary">Loading reviews...</p>
-                ) : reviewsList.length === 0 ? (
-                    <p className="text-body text-text-secondary">No reviews yet for your courses.</p>
-                ) : (
-                    <div className="space-y-3">
-                        {reviewsList.map((r) => (
-                            <div key={r._id} className="border-b border-border-light last:border-0 pb-3 last:pb-0">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-body text-text-primary">
-                                        {r.studentId?.name || "Student"} — {r.courseId?.title || "Unknown Course"}
-                                    </p>
-                                    <div className="flex items-center gap-0.5">
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <Star key={i} size={13} className={i < r.rating ? "text-warning fill-warning" : "text-border-light"} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-caption text-text-secondary mt-1">{r.comment}</p>
+
+            {/* Engagement & Revenue Row */}
+            <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                    <h3 className="text-h3 text-text-primary mb-4">Course Engagement</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="text-text-secondary">Average Completion</span>
+                                <span className="text-text-primary font-medium">{analytics.avgCompletion}%</span>
                             </div>
-                        ))}
+                            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-primary rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(analytics.avgCompletion, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="text-text-secondary">Engagement Rate</span>
+                                <span className="text-text-primary font-medium">{analytics.engagementRate || 0}%</span>
+                            </div>
+                            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-green-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(analytics.engagementRate || 0, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="text-text-secondary">Total Watch Time</span>
+                                <span className="text-text-primary font-medium">{formatTime(analytics.totalWatchTime)}</span>
+                            </div>
+                            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min((analytics.totalWatchTime / 3600) * 10, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                        <div className="bg-blue-50 rounded-lg p-2">
+                            <p className="text-xs text-blue-600">Active Students</p>
+                            <p className="text-lg font-bold text-blue-700">
+                                {Math.round(analytics.totalStudents * ((analytics.engagementRate || 0) / 100))}
+                            </p>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-2">
+                            <p className="text-xs text-green-600">Total Revenue</p>
+                            <p className="text-lg font-bold text-green-700">
+                                ${analytics.totalRevenue.toLocaleString()}
+                            </p>
+                        </div>
+                        <div className="bg-yellow-50 rounded-lg p-2">
+                            <p className="text-xs text-yellow-600">Avg Rating</p>
+                            <p className="text-lg font-bold text-yellow-700">
+                                {analytics.averageRating.toFixed(1)} ⭐
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <h3 className="text-h3 text-text-primary mb-4">Popular Categories</h3>
+                    {analytics.popularCategories && analytics.popularCategories.length > 0 ? (
+                        <div className="space-y-3">
+                            {analytics.popularCategories.map((cat, index) => {
+                                const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500'];
+                                return (
+                                    <div key={cat.name}>
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="text-text-secondary">{cat.name}</span>
+                                            <span className="text-text-primary font-medium">{cat.count} courses ({cat.percentage || 0}%)</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full ${colors[index % colors.length]} rounded-full transition-all duration-500`}
+                                                style={{ width: `${Math.min(cat.percentage || 0, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-text-secondary text-sm">No categories data available</p>
+                    )}
+                </Card>
+            </div>
+
+            {/* Course Performance Table */}
+            <Card>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-h3 text-text-primary">Course Performance</h3>
+                    <button 
+                        onClick={fetchAnalytics}
+                        className="text-caption text-primary hover:underline flex items-center gap-1"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+
+                {analytics.courseData && analytics.courseData.length === 0 ? (
+                    <p className="text-text-secondary text-center py-8">No course data available</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="text-caption text-text-secondary border-b border-border-light bg-gray-50/30">
+                                    <th className="py-3 px-4 font-semibold">Course</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Students</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Rating</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Progress</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Revenue</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Watch Time</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {analytics.courseData.map((course) => (
+                                    <tr key={course.id} className="border-b border-border-light hover:bg-gray-50/50 transition-colors last:border-0">
+                                        <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                                {course.image ? (
+                                                    <img 
+                                                        src={course.image} 
+                                                        alt={course.title} 
+                                                        className="w-8 h-8 object-cover rounded"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                                                        <BookOpen size={14} className="text-gray-400" />
+                                                    </div>
+                                                )}
+                                                <p className="text-text-primary font-medium line-clamp-1">{course.title}</p>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4 text-center text-text-secondary">{course.students}</td>
+                                        <td className="py-3 px-4 text-center">
+                                            <span className="flex items-center justify-center gap-1">
+                                                <span className="text-text-secondary">{course.rating}</span>
+                                                <Star size={12} className="text-warning fill-warning" />
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-primary rounded-full transition-all duration-500"
+                                                        style={{ width: `${Math.min(course.progress, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-caption text-text-secondary">{course.progress}%</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4 text-center text-text-secondary">
+                                            ${course.revenue.toLocaleString()}
+                                        </td>
+                                        <td className="py-3 px-4 text-center text-text-secondary">
+                                            {formatTime(course.watchTime)}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                            <Badge tone={
+                                                course.status === 'approved' ? 'success' :
+                                                course.status === 'pending' ? 'warning' :
+                                                'danger'
+                                            }>
+                                                {course.status || 'Draft'}
+                                            </Badge>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </Card>
