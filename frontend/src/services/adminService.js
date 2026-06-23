@@ -75,4 +75,20 @@ export const adminService = {
       throw error;
     }
   },
+
+  /**
+   * Fetches enrollment report (per-course details and summaries).
+   */
+  getEnrollmentReport: async () => {
+    try {
+      const response = await api.get("/admin/enrollment-report");
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error fetching enrollment report:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };
