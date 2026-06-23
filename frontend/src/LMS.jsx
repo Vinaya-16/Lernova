@@ -53,7 +53,7 @@ export default function LMS() {
                         </div>
 
                         {/* Right: hero illustration (desktop), stacked above CTA on mobile via flex-col-reverse */}
-                        <div className="flex justify-center lg:flex-1 lg:justify-end">
+                        {/* <div className="flex justify-center lg:flex-1 lg:justify-end">
                             <Illustration
                                 src={heroLearning}
                                 webp={heroLearningWebp}
@@ -62,7 +62,7 @@ export default function LMS() {
                                 animate="float"
                                 eager
                             />
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>
