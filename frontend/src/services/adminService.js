@@ -40,4 +40,39 @@ export const adminService = {
       throw error;
     }
   },
+
+  /**
+   * Fetches all students (admin view).
+   * Optional search query filters by name or email.
+   */
+  getAllStudents: async (search = "") => {
+    try {
+      const response = await api.get("/admin/students", {
+        params: search ? { search } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error fetching students:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Deletes a student and all their enrollments by ID.
+   */
+  deleteStudent: async (id) => {
+    try {
+      const response = await api.delete(`/admin/students/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error deleting student:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  },
 };

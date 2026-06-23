@@ -108,6 +108,9 @@ export const getStudentsProgress = async (req, res) => {
         // Group by student
         const studentMap = {};
         enrollments.forEach(enrollment => {
+            // Skip orphaned enrollments (student was deleted but enrollment remains)
+            if (!enrollment.studentId) return;
+
             const studentId = enrollment.studentId._id.toString();
             if (!studentMap[studentId]) {
                 studentMap[studentId] = {

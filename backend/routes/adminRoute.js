@@ -1,9 +1,13 @@
 import express from "express";
-import { getDashboardStats } from "../controllers/adminController.js";
+import { getDashboardStats, getAllStudents, deleteStudent } from "../controllers/adminController.js";
 
 const router = express.Router();
 
-// Public route — no auth middleware (no Admin model exists yet)
+// Dashboard
 router.get("/dashboard", getDashboardStats);
+
+// Manage Students
+router.get("/students", getAllStudents);
+router.delete("/students/:id", deleteStudent);
 
 export default router;
