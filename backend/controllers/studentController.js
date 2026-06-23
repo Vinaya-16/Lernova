@@ -84,6 +84,7 @@ export const getStudentsProgress = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 students: [],
+                totalStudents: 0,
                 message: "No courses found for this instructor"
             });
         }
@@ -101,55 +102,76 @@ export const getStudentsProgress = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 students: [],
+                totalStudents: 0,
                 message: "No students enrolled in your courses"
             });
         }
 
-        // Group by student
+        // --- FIX: Group by UNIQUE student ---
         const studentMap = {};
         enrollments.forEach(enrollment => {
+            if (!enrollment.studentId) return;
+            
             const studentId = enrollment.studentId._id.toString();
             if (!studentMap[studentId]) {
                 studentMap[studentId] = {
                     id: studentId,
-                    name: enrollment.studentId.name,
-                    email: enrollment.studentId.email,
+                    name: enrollment.studentId.name || 'Unknown',
+                    email: enrollment.studentId.email || 'No email',
                     coursesEnrolled: 0,
                     totalProgress: 0,
                     completedCourses: 0,
                     totalWatchTime: 0,
                     lastActivity: null,
+                    enrolledCourses: []
                 };
             }
+            
+            // Increment course count
             studentMap[studentId].coursesEnrolled++;
-            studentMap[studentId].totalProgress += enrollment.progress || 0;
-            studentMap[studentId].totalWatchTime += enrollment.totalWatchTime || 0;
-
-            if (enrollment.progress === 100) {
+            
+            // Add progress from this enrollment
+            const progress = enrollment.progress || 0;
+            studentMap[studentId].totalProgress += progress;
+            
+            // Check if course is completed
+            if (progress === 100) {
                 studentMap[studentId].completedCourses++;
             }
-
+            
+            // Add watch time
+            studentMap[studentId].totalWatchTime += enrollment.totalWatchTime || 0;
+            
+            // Track last activity
             if (enrollment.lastActivity) {
-                if (!studentMap[studentId].lastActivity ||
+                if (!studentMap[studentId].lastActivity || 
                     enrollment.lastActivity > studentMap[studentId].lastActivity) {
                     studentMap[studentId].lastActivity = enrollment.lastActivity;
                 }
             }
+            
+            // Store enrolled course info
+            studentMap[studentId].enrolledCourses.push({
+                courseId: enrollment.courseId,
+                progress: progress,
+                lastActivity: enrollment.lastActivity
+            });
         });
 
-        // Calculate average progress
+        // Calculate average progress for each student
         const students = Object.values(studentMap).map(student => {
             const avgProgress = student.coursesEnrolled > 0
                 ? Math.round(student.totalProgress / student.coursesEnrolled)
                 : 0;
-
+            
             let status = 'Not Started';
             if (avgProgress === 100) {
                 status = 'Completed';
             } else if (avgProgress > 0) {
                 status = 'In Progress';
             }
-
+            
+            // Check if student is active (recent activity within 30 days)
             if (student.lastActivity) {
                 const daysSinceLastActivity = Math.floor(
                     (Date.now() - new Date(student.lastActivity).getTime()) / (1000 * 60 * 60 * 24)
@@ -169,12 +191,18 @@ export const getStudentsProgress = async (req, res) => {
                 completedCourses: student.completedCourses,
                 totalWatchTime: student.totalWatchTime,
                 lastActivity: student.lastActivity,
+                enrolledCourses: student.enrolledCourses
             };
         });
 
+        // Sort by progress (highest first)
+        students.sort((a, b) => b.progress - a.progress);
+
+        console.log('👨‍🎓 Unique students found:', students.length);
+
         res.status(200).json({
             success: true,
-            students,
+            students: students,
             totalStudents: students.length,
             instructorCourses: instructorCourses.map(c => ({
                 id: c._id,
@@ -282,9 +310,6 @@ export const getStudentDetailedProgress = async (req, res) => {
         });
     }
 };
-
-// Update video progress
-// controllers/studentController.js - Fix updateVideoProgress
 
 // Update video progress
 export const updateVideoProgress = async (req, res) => {

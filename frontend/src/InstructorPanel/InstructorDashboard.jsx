@@ -11,6 +11,7 @@ import {
     LayoutDashboard,
     PlusCircle,
     X,
+    Bell,
     BookOpen,
     Layers,
     ClipboardList,
@@ -58,72 +59,311 @@ const navItems = [
     { id: "analytics", label: "Course Analytics", icon: BarChart3 },
 ];
 
-const myCourses = allCourses.slice(0, 4);
-
 // ── Dashboard ───────────────────────────────────────────────────────────
 function Dashboard() {
-    const totalStudents = myCourses.reduce((sum, c) => sum + c.students, 0);
-    const avgCompletion = Math.round(myCourses.reduce((sum, c) => sum + c.progress, 0) / myCourses.length);
-
-    const [recentAnnouncements, setRecentAnnouncements] = useState([]);
-    const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+    const [dashboardData, setDashboardData] = useState({
+        totalCourses: 0,
+        totalStudents: 0,
+        totalRevenue: 0,
+        pendingSubmissions: 0,
+        recentActivities: [],
+        topCourses: []
+    });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchRecent = async () => {
-            try {
-                const res = await announcementService.getAnnouncements();
-                const list = res?.announcements || [];
-                setRecentAnnouncements(list.slice(0, 4));
-            } catch (err) {
-                console.error("Failed to fetch recent announcements:", err);
-            } finally {
-                setAnnouncementsLoading(false);
-            }
-        };
-        fetchRecent();
+        fetchDashboardData();
     }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // 1. Fetch instructor's courses
+            const coursesRes = await courseService.getMyCourses();
+            const courses = coursesRes.course || coursesRes.courses || [];
+            console.log('📚 Courses:', courses);
+
+            if (courses.length === 0) {
+                setDashboardData({
+                    totalCourses: 0,
+                    totalStudents: 0,
+                    totalRevenue: 0,
+                    pendingSubmissions: 0,
+                    recentActivities: [],
+                    topCourses: []
+                });
+                setLoading(false);
+                return;
+            }
+
+            // 2. Calculate basic stats from courses
+            let totalStudents = 0;
+            let totalRevenue = 0;
+            let recentActivities = [];
+            const topCourses = [];
+
+            courses.forEach(course => {
+                const students = course.studentsEnrolled || 0;
+                const revenue = students * (course.price || 0);
+                
+                totalStudents += students;
+                totalRevenue += revenue;
+
+                // Track courses with students
+                if (students > 0) {
+                    topCourses.push({
+                        id: course._id,
+                        title: course.title,
+                        students: students,
+                        revenue: revenue
+                    });
+                }
+
+                // Create enrollment activity from course data
+                if (course.enrolledStudents && course.enrolledStudents.length > 0) {
+                    course.enrolledStudents.slice(0, 3).forEach(studentId => {
+                        recentActivities.push({
+                            id: `${course._id}-${studentId}`,
+                            type: 'enrollment',
+                            message: `Student enrolled in "${course.title}"`,
+                            time: course.updatedAt || new Date().toISOString()
+                        });
+                    });
+                }
+            });
+
+            // 3. Fetch assignments for pending submissions
+            let pendingSubmissions = 0;
+            try {
+                const assignRes = await assignmentService.getMyAssignments();
+                const assignments = assignRes?.assignments || [];
+                
+                for (const assignment of assignments) {
+                    try {
+                        const subRes = await assignmentService.getAssignmentSubmissions(assignment._id);
+                        const subs = subRes?.submissions || [];
+                        const pending = subs.filter(s => s.status === 'pending' || s.status === 'submitted');
+                        pendingSubmissions += pending.length;
+                    } catch (err) {
+                        console.log('No submissions for assignment:', assignment._id);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch assignments:', err);
+            }
+
+            // 4. Fetch reviews for recent activity
+            try {
+                const reviewRes = await reviewService.getInstructorReviews();
+                const reviews = reviewRes?.reviews || [];
+                
+                reviews.slice(0, 3).forEach(r => {
+                    recentActivities.push({
+                        id: r._id,
+                        type: 'review',
+                        message: `${r.studentId?.name || 'Student'} reviewed "${r.courseId?.title || 'course'}" (${r.rating}⭐)`,
+                        time: r.createdAt || new Date().toISOString()
+                    });
+                });
+            } catch (err) {
+                console.log('No reviews data available');
+            }
+
+            // 5. Sort and limit recent activities
+            recentActivities.sort((a, b) => new Date(b.time) - new Date(a.time));
+            recentActivities = recentActivities.slice(0, 5);
+
+            // 6. Sort top courses by students
+            topCourses.sort((a, b) => b.students - a.students);
+
+            setDashboardData({
+                totalCourses: courses.length,
+                totalStudents: totalStudents,
+                totalRevenue: totalRevenue,
+                pendingSubmissions: pendingSubmissions,
+                recentActivities: recentActivities,
+                topCourses: topCourses.slice(0, 5)
+            });
+
+        } catch (error) {
+            console.error('❌ Error fetching dashboard data:', error);
+            setError('Failed to load dashboard data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatDate = (date) => {
+        if (!date) return '';
+        const d = new Date(date);
+        const now = new Date();
+        const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+        if (diff === 0) return 'Today';
+        if (diff === 1) return 'Yesterday';
+        if (diff < 7) return `${diff} days ago`;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const getActivityIcon = (type) => {
+        if (type === 'enrollment') return Users;
+        if (type === 'review') return Star;
+        return Bell;
+    };
+
+    const getActivityColor = (type) => {
+        if (type === 'enrollment') return 'bg-blue-100 text-blue-600';
+        if (type === 'review') return 'bg-yellow-100 text-yellow-600';
+        return 'bg-gray-100 text-gray-600';
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="bg-white rounded-xl p-6 shadow-sm animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                        </div>
+                    ))}
+                </div>
+                <div className="bg-white rounded-xl p-6 shadow-sm animate-pulse">
+                    <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="p-8 text-center">
+                <div className="text-red-500 text-4xl mb-3">⚠️</div>
+                <p className="text-red-500 mb-4">{error}</p>
+                <button 
+                    onClick={fetchDashboardData}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                >
+                    Try Again
+                </button>
+            </Card>
+        );
+    }
+
+    if (dashboardData.totalCourses === 0) {
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard icon={BookOpen} label="Total Courses" value="0" accent="primary" />
+                    <StatCard icon={Users} label="Total Students" value="0" accent="info" />
+                    <StatCard icon={Star} label="Revenue" value="$0" accent="warning" />
+                    <StatCard icon={ClipboardList} label="Pending Submissions" value="0" accent="danger" />
+                </div>
+                <Card className="p-12 text-center">
+                    <div className="flex flex-col items-center">
+                        <BookOpen size={64} className="text-gray-300 mb-4" />
+                        <p className="text-h3 text-text-primary">Welcome to Your Dashboard!</p>
+                        <p className="text-body text-text-secondary mt-2 max-w-md">
+                            Create your first course to start tracking your teaching performance.
+                        </p>
+                        <Button 
+                            className="mt-6"
+                            onClick={() => window.location.href = '/instructor/create'}
+                        >
+                            <PlusCircle size={16} className="mr-2" />
+                            Create Course
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
+            {/* Stats Row - 4 Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={BookOpen} label="Total Courses" value={myCourses.length} accent="primary" />
-                <StatCard icon={Users} label="Active Students" value={totalStudents.toLocaleString()} accent="info" />
-                <StatCard icon={ClipboardList} label="Assignment Submissions" value={assignments.length} accent="warning" />
-                <StatCard icon={BarChart3} label="Course Completion Rate" value={`${avgCompletion}%`} accent="success" />
+                <StatCard 
+                    icon={BookOpen} 
+                    label="Total Courses" 
+                    value={dashboardData.totalCourses} 
+                    accent="primary" 
+                />
+                <StatCard 
+                    icon={Users} 
+                    label="Total Enrollments" 
+                    value={dashboardData.totalStudents} 
+                    accent="info" 
+                />
+                <StatCard 
+                    icon={Star} 
+                    label="Revenue" 
+                    value={`$${dashboardData.totalRevenue.toLocaleString()}`} 
+                    accent="warning" 
+                />
+                <StatCard 
+                    icon={ClipboardList} 
+                    label="Pending Submissions" 
+                    value={dashboardData.pendingSubmissions} 
+                    accent="danger" 
+                />
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                    <h3 className="text-h3 text-text-primary mb-4">Quiz Statistics</h3>
-                    <div className="space-y-3">
-                        {mockQuizzes.map((q) => (
-                            <div key={q.id} className="flex items-center justify-between border border-border-light rounded-xl px-4 py-3">
-                                <div>
-                                    <p className="text-body text-text-primary">{q.title}</p>
-                                    <p className="text-caption text-text-secondary">{q.course}</p>
-                                </div>
-                                <Badge tone={q.status === "Completed" ? "success" : "warning"}>{q.status}</Badge>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
+            {/* Two Column Layout */}
+            <div className="grid lg:grid-cols-2 gap-6">
+                {/* Top Courses */}
                 <Card>
-                    <h3 className="text-h3 text-text-primary mb-4">Recent Announcements</h3>
-                    {announcementsLoading ? (
-                        <p className="text-caption text-text-secondary">Loading...</p>
-                    ) : recentAnnouncements.length === 0 ? (
-                        <p className="text-caption text-text-secondary">No announcements yet.</p>
+                    <h3 className="text-h3 text-text-primary mb-4">Top Courses</h3>
+                    {dashboardData.topCourses.length === 0 ? (
+                        <p className="text-caption text-text-secondary text-center py-4">No students enrolled yet</p>
                     ) : (
-                        <ul className="space-y-4">
-                            {recentAnnouncements.map((a) => (
-                                <li key={a._id}>
-                                    <p className="text-body text-text-primary">{a.title}</p>
-                                    <p className="text-caption text-text-secondary">
-                                        {a.course?.title || "General"} · {new Date(a.createdAt).toLocaleDateString()}
-                                    </p>
-                                </li>
+                        <div className="space-y-3">
+                            {dashboardData.topCourses.map((course, index) => (
+                                <div key={course.id} className="flex items-center justify-between border-b border-border-light last:border-0 pb-2 last:pb-0">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-bold text-primary w-6">{index + 1}</span>
+                                        <div>
+                                            <p className="text-sm text-text-primary font-medium">{course.title}</p>
+                                            <p className="text-xs text-text-secondary">{course.students} students</p>
+                                        </div>
+                                    </div>
+                                    <Badge tone="info" className="text-xs">${course.revenue}</Badge>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
+                    )}
+                </Card>
+
+                {/* Recent Activities */}
+                <Card>
+                    <h3 className="text-h3 text-text-primary mb-4">Recent Activities</h3>
+                    {dashboardData.recentActivities.length === 0 ? (
+                        <p className="text-caption text-text-secondary text-center py-4">No recent activity</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {dashboardData.recentActivities.map((activity) => {
+                                const Icon = getActivityIcon(activity.type);
+                                const colorClass = getActivityColor(activity.type);
+                                return (
+                                    <div key={activity.id} className="flex items-start gap-3 border-b border-border-light last:border-0 pb-2 last:pb-0">
+                                        <div className={`p-1.5 rounded-lg ${colorClass}`}>
+                                            <Icon size={14} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-text-primary">{activity.message}</p>
+                                            <p className="text-xs text-text-secondary">{formatDate(activity.time)}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </Card>
             </div>
@@ -514,6 +754,7 @@ function ManageCourses() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
 
     useEffect(() => { fetchCourses(); }, []);
 
@@ -521,7 +762,8 @@ function ManageCourses() {
         try {
             setLoading(true);
             const response = await courseService.getMyCourses();
-            setCourses(response.course || []);
+            console.log('📚 Courses fetched:', response);
+            setCourses(response.course || response.courses || []);
         } catch (error) {
             console.error("Failed to fetch courses: ", error);
         } finally {
@@ -530,37 +772,170 @@ function ManageCourses() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Delete this course?")) return;
+        if (!window.confirm("Delete this course? This action cannot be undone.")) return;
+        
+        setDeletingId(id);
         try {
             await courseService.deleteCourse(id);
             setCourses((prev) => prev.filter((course) => course._id !== id));
             alert("Course deleted successfully.");
         } catch (error) {
             console.error("Delete course failed: ", error);
+            alert(error.response?.data?.message || "Failed to delete course.");
+        } finally {
+            setDeletingId(null);
         }
     };
 
-    if (editing) return <CourseEditor course={editing} onBack={() => { setEditing(null); fetchCourses(); }} />;
-    if (loading) return <p>Loading courses...</p>;
+    const getStatusBadge = (status) => {
+        const statusMap = {
+            approved: { tone: "success", label: "Approved" },
+            pending: { tone: "warning", label: "Pending" },
+            rejected: { tone: "danger", label: "Rejected" },
+            draft: { tone: "secondary", label: "Draft" }
+        };
+        const s = statusMap[status] || statusMap.draft;
+        return <Badge tone={s.tone}>{s.label}</Badge>;
+    };
+
+    if (editing) {
+        return <CourseEditor course={editing} onBack={() => { setEditing(null); fetchCourses(); }} />;
+    }
+
+    if (loading) {
+        return (
+            <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-4 animate-pulse">
+                        <div className="flex items-center gap-4">
+                            <div className="w-20 h-16 bg-gray-200 rounded-xl"></div>
+                            <div className="flex-1">
+                                <div className="h-5 bg-gray-200 rounded w-1/3 mb-2"></div>
+                                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                            </div>
+                            <div className="h-8 bg-gray-200 rounded w-20"></div>
+                            <div className="h-9 bg-gray-200 rounded w-16"></div>
+                            <div className="h-9 bg-gray-200 rounded w-16"></div>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+        );
+    }
+
+    if (courses.length === 0) {
+        return (
+            <Card className="p-12 text-center">
+                <div className="flex flex-col items-center">
+                    <BookOpen size={64} className="text-gray-300 mb-4" />
+                    <p className="text-h3 text-text-primary">No Courses Created Yet</p>
+                    <p className="text-body text-text-secondary mt-2 max-w-md">
+                        Create your first course to start teaching and reach students.
+                    </p>
+                    <Button 
+                        className="mt-6"
+                        onClick={() => window.location.href = '/instructor/create'}
+                    >
+                        <PlusCircle size={16} className="mr-2" />
+                        Create Course
+                    </Button>
+                </div>
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-4">
-            {courses.length === 0 ? (
-                <Card><p>No courses created yet</p></Card>
-            ) : (
-                courses.map((c) => (
-                    <Card key={c._id} className="flex items-center gap-4 flex-wrap">
-                        <img src={c.image || ""} alt={c.title} className="w-20 h-16 object-cover rounded-xl" />
-                        <div className="flex-1 min-w-[180px]">
-                            <p className="text-body-lg text-text-primary">{c.title}</p>
-                            <p className="text-caption text-text-secondary">{c.category} · {c.studentsEnrolled || 0} students</p>
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-h2 text-text-primary">Manage Courses</h2>
+                    <p className="text-caption text-text-secondary">{courses.length} courses total</p>
+                </div>
+                <Button onClick={() => window.location.href = '/instructor/create'}>
+                    <PlusCircle size={16} className="mr-2" />
+                    Create Course
+                </Button>
+            </div>
+
+            {courses.map((c) => (
+                <Card key={c._id} className="flex items-center gap-4 flex-wrap p-4 hover:shadow-md transition-shadow">
+                    {/* Course Image */}
+                    <div className="w-20 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                        {c.image ? (
+                            <img 
+                                src={c.image} 
+                                alt={c.title} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = '';
+                                    e.target.className = 'w-full h-full object-cover hidden';
+                                    e.target.parentElement.innerHTML = `
+                                        <div class="w-full h-full flex items-center justify-center bg-gray-100">
+                                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                            </svg>
+                                        </div>
+                                    `;
+                                }}
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <FileText size={24} className="text-gray-400" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Course Info */}
+                    <div className="flex-1 min-w-[180px]">
+                        <p className="text-body-lg text-text-primary font-medium">{c.title}</p>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-caption text-text-secondary">{c.category || 'Uncategorized'}</span>
+                            <span className="text-caption text-text-secondary">•</span>
+                            <span className="text-caption text-text-secondary">{c.studentsEnrolled || 0} students</span>
+                            {c.price > 0 && (
+                                <>
+                                    <span className="text-caption text-text-secondary">•</span>
+                                    <span className="text-caption text-text-primary font-medium">${c.price}</span>
+                                </>
+                            )}
+                            {c.price === 0 && (
+                                <>
+                                    <span className="text-caption text-text-secondary">•</span>
+                                    <span className="text-caption text-green-600 font-medium">Free</span>
+                                </>
+                            )}
                         </div>
-                        <Badge tone={c.status === "approved" ? "success" : c.status === "rejected" ? "danger" : "warning"}>{c.status}</Badge>
-                        <Button variant="outline" className="h-9 px-4" onClick={() => setEditing(c)}>Edit</Button>
-                        <Button variant="destructive" className="h-9 px-4" onClick={() => handleDelete(c._id)}>Delete</Button>
-                    </Card>
-                ))
-            )}
+                        {c.description && (
+                            <p className="text-sm text-text-secondary mt-1 line-clamp-1">{c.description}</p>
+                        )}
+                    </div>
+
+                    {/* Status & Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(c.status)}
+                        <Button 
+                            variant="outline" 
+                            className="h-9 px-3"
+                            onClick={() => setEditing(c)}
+                        >
+                            <Pencil size={16} />
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            className="h-9 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDelete(c._id)}
+                            disabled={deletingId === c._id}
+                        >
+                            {deletingId === c._id ? (
+                                <span className="text-xs">Deleting...</span>
+                            ) : (
+                                <Trash2 size={16} />
+                            )}
+                        </Button>
+                    </div>
+                </Card>
+            ))}
         </div>
     );
 }
@@ -786,7 +1161,7 @@ function ManageAssignments() {
                                                     {getStatusBadge(sub.status)}
                                                 </div>
                                                 {sub.submissionText && <p className="text-sm text-gray-700 mt-2 p-3 bg-gray-50 rounded-md whitespace-pre-wrap">{sub.submissionText}</p>}
-                                                {sub.fileUrl && <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm mt-2 inline-block">📎 View Attachment</a>}
+                                                {/* {sub.fileUrl && <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm mt-2 inline-block">📎 View Attachment</a>} */}
                                             </div>
                                             {sub.status !== 'graded' ? (
                                                 <div className="flex flex-col gap-2 min-w-[200px]">
@@ -2135,6 +2510,8 @@ function CourseAnalytics() {
     const [analytics, setAnalytics] = useState({
         totalCourses: 0,
         totalStudents: 0,
+        uniqueStudents: 0,
+        totalEnrollments: 0,
         totalRevenue: 0,
         averageRating: 0,
         avgCompletion: 0,
@@ -2241,14 +2618,17 @@ function CourseAnalytics() {
         );
     }
 
+    const uniqueStudents = analytics.uniqueStudents || analytics.totalStudents || 0;
+    const totalEnrollments = analytics.totalEnrollments || 0;
+
     return (
         <div className="space-y-6">
             {/* Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard 
                     icon={Users} 
-                    label="Total Students" 
-                    value={analytics.totalStudents.toLocaleString()} 
+                    label="Unique Students" 
+                    value={uniqueStudents.toLocaleString()} 
                     accent="primary" 
                 />
                 <StatCard 
@@ -2271,7 +2651,30 @@ function CourseAnalytics() {
                 />
             </div>
 
-            {/* Engagement & Revenue Row */}
+            {/* Additional Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500">Total Enrollments</p>
+                    <p className="text-xl font-bold text-text-primary">{totalEnrollments}</p>
+                    <p className="text-xs text-gray-400">(Course-student pairs)</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500">Avg Enrollments per Student</p>
+                    <p className="text-xl font-bold text-text-primary">
+                        {uniqueStudents > 0 ? (totalEnrollments / uniqueStudents).toFixed(1) : 0}
+                    </p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500">Total Revenue</p>
+                    <p className="text-xl font-bold text-green-600">${analytics.totalRevenue.toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-gray-500">Engagement Rate</p>
+                    <p className="text-xl font-bold text-blue-600">{analytics.engagementRate || 0}%</p>
+                </div>
+            </div>
+
+            {/* Engagement & Categories Row */}
             <div className="grid md:grid-cols-2 gap-6">
                 <Card>
                     <h3 className="text-h3 text-text-primary mb-4">Course Engagement</h3>
@@ -2311,26 +2714,6 @@ function CourseAnalytics() {
                                     style={{ width: `${Math.min((analytics.totalWatchTime / 3600) * 10, 100)}%` }}
                                 />
                             </div>
-                        </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                        <div className="bg-blue-50 rounded-lg p-2">
-                            <p className="text-xs text-blue-600">Active Students</p>
-                            <p className="text-lg font-bold text-blue-700">
-                                {Math.round(analytics.totalStudents * ((analytics.engagementRate || 0) / 100))}
-                            </p>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-2">
-                            <p className="text-xs text-green-600">Total Revenue</p>
-                            <p className="text-lg font-bold text-green-700">
-                                ${analytics.totalRevenue.toLocaleString()}
-                            </p>
-                        </div>
-                        <div className="bg-yellow-50 rounded-lg p-2">
-                            <p className="text-xs text-yellow-600">Avg Rating</p>
-                            <p className="text-lg font-bold text-yellow-700">
-                                {analytics.averageRating.toFixed(1)} ⭐
-                            </p>
                         </div>
                     </div>
                 </Card>
@@ -2387,10 +2770,10 @@ function CourseAnalytics() {
                                 <tr className="text-caption text-text-secondary border-b border-border-light bg-gray-50/30">
                                     <th className="py-3 px-4 font-semibold">Course</th>
                                     <th className="py-3 px-4 font-semibold text-center">Students</th>
+                                    <th className="py-3 px-4 font-semibold text-center">Enrollments</th>
                                     <th className="py-3 px-4 font-semibold text-center">Rating</th>
                                     <th className="py-3 px-4 font-semibold text-center">Progress</th>
                                     <th className="py-3 px-4 font-semibold text-center">Revenue</th>
-                                    <th className="py-3 px-4 font-semibold text-center">Watch Time</th>
                                     <th className="py-3 px-4 font-semibold text-center">Status</th>
                                 </tr>
                             </thead>
@@ -2417,7 +2800,8 @@ function CourseAnalytics() {
                                                 <p className="text-text-primary font-medium line-clamp-1">{course.title}</p>
                                             </div>
                                         </td>
-                                        <td className="py-3 px-4 text-center text-text-secondary">{course.students}</td>
+                                        <td className="py-3 px-4 text-center text-text-secondary">{course.students || 0}</td>
+                                        <td className="py-3 px-4 text-center text-text-secondary">{course.enrollments || course.students || 0}</td>
                                         <td className="py-3 px-4 text-center">
                                             <span className="flex items-center justify-center gap-1">
                                                 <span className="text-text-secondary">{course.rating}</span>
@@ -2437,9 +2821,6 @@ function CourseAnalytics() {
                                         </td>
                                         <td className="py-3 px-4 text-center text-text-secondary">
                                             ${course.revenue.toLocaleString()}
-                                        </td>
-                                        <td className="py-3 px-4 text-center text-text-secondary">
-                                            {formatTime(course.watchTime)}
                                         </td>
                                         <td className="py-3 px-4 text-center">
                                             <Badge tone={
@@ -2464,6 +2845,23 @@ function CourseAnalytics() {
 // ── Root ──────────────────────────────────────────────────────────────────
 export default function InstructorDashboard() {
     const [active, setActive] = useState("dashboard");
+    const [hasCourses, setHasCourses] = useState(true);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const checkCourses = async () => {
+            try {
+                const res = await courseService.getMyCourses();
+                const courses = res.course || res.courses || [];
+                setHasCourses(courses.length > 0);
+            } catch {
+                setHasCourses(false);
+            } finally {
+                setLoading(false);
+            }
+        };
+        checkCourses();
+    }, []);
 
     const renderPage = () => {
         switch (active) {
@@ -2481,7 +2879,17 @@ export default function InstructorDashboard() {
         }
     };
 
-    if (myCourses.length === 0) {
+    if (loading) {
+        return (
+            <DashboardShell roleLabel="Instructor Panel" navItems={navItems} active={active} onNavigate={setActive} userName="Instructor">
+                <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                </div>
+            </DashboardShell>
+        );
+    }
+
+    if (!hasCourses) {
         return (
             <DashboardShell roleLabel="Instructor Panel" navItems={navItems} active={active} onNavigate={setActive} userName="Instructor">
                 <EmptyState icon={BookOpen} title="No courses yet" sub="Create your first course to get started." />

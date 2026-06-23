@@ -323,19 +323,24 @@ export const getEnrolledCourses = async (req, res) => {
     }
 };
 
+// controllers/coursesController.js - Update getCourseAnalytics
+
 export const getCourseAnalytics = async (req, res) => {
     try {
         const instructorId = req.user._id;
+        console.log('📊 Fetching analytics for instructor:', instructorId);
 
         // Get all courses taught by this instructor
         const courses = await coursesModel.find({ instructorId: instructorId });
-        
+        console.log('📚 Courses found for instructor:', courses.length);
+
         if (courses.length === 0) {
             return res.status(200).json({
                 success: true,
                 analytics: {
                     totalCourses: 0,
                     totalStudents: 0,
+                    uniqueStudents: 0,
                     totalRevenue: 0,
                     averageRating: 0,
                     avgCompletion: 0,
@@ -353,32 +358,61 @@ export const getCourseAnalytics = async (req, res) => {
         const enrollments = await Enrollment.find({
             courseId: { $in: courseIds }
         });
+        console.log('👨‍🎓 Enrollments found:', enrollments.length);
 
         // Get all reviews for these courses
         const reviews = await Review.find({
             courseId: { $in: courseIds }
         });
+        console.log('⭐ Reviews found:', reviews.length);
 
-        // Calculate analytics
-        const totalStudents = enrollments.length;
+        // --- FIX: Count UNIQUE students ---
+        const uniqueStudentIds = new Set();
+        enrollments.forEach(e => {
+            if (e.studentId) {
+                uniqueStudentIds.add(e.studentId.toString());
+            }
+        });
+        const uniqueStudents = uniqueStudentIds.size;
+        console.log('👨‍🎓 Unique students:', uniqueStudents);
+
+        // Calculate total revenue (sum of all enrollments)
         const totalRevenue = enrollments.reduce((sum, e) => sum + (e.price || 0), 0);
         const totalWatchTime = enrollments.reduce((sum, e) => sum + (e.totalWatchTime || 0), 0);
         
+        // Calculate average rating from reviews
         const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
         const averageRating = reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : 0;
 
-        // Calculate completion
+        // Calculate average completion (per enrollment)
         const totalProgress = enrollments.reduce((sum, e) => sum + (e.progress || 0), 0);
         const avgCompletion = enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
 
-        // Calculate engagement (students with > 0 progress)
-        const engagedStudents = enrollments.filter(e => (e.progress || 0) > 0).length;
-        const engagementRate = totalStudents > 0 ? Math.round((engagedStudents / totalStudents) * 100) : 0;
+        // Calculate engagement (unique students with > 0 progress)
+        const engagedStudentIds = new Set();
+        enrollments.forEach(e => {
+            if (e.studentId && (e.progress || 0) > 0) {
+                engagedStudentIds.add(e.studentId.toString());
+            }
+        });
+        const engagementRate = uniqueStudents > 0 ? Math.round((engagedStudentIds.size / uniqueStudents) * 100) : 0;
+
+        // Calculate total enrollments (total course-student pairs)
+        const totalEnrollments = enrollments.length;
 
         // Course performance data
         const courseData = courses.map(c => {
             const courseEnrollments = enrollments.filter(e => e.courseId.toString() === c._id.toString());
             const courseReviews = reviews.filter(r => r.courseId.toString() === c._id.toString());
+            
+            // Count unique students per course
+            const courseStudentIds = new Set();
+            courseEnrollments.forEach(e => {
+                if (e.studentId) {
+                    courseStudentIds.add(e.studentId.toString());
+                }
+            });
+            
             const courseRating = courseReviews.length > 0 
                 ? Math.round((courseReviews.reduce((sum, r) => sum + r.rating, 0) / courseReviews.length) * 10) / 10 
                 : 0;
@@ -390,7 +424,8 @@ export const getCourseAnalytics = async (req, res) => {
                 id: c._id,
                 title: c.title,
                 category: c.category,
-                students: courseEnrollments.length,
+                students: courseStudentIds.size, // ← Unique students per course
+                enrollments: courseEnrollments.length, // ← Total enrollments
                 revenue: courseEnrollments.reduce((sum, e) => sum + (e.price || 0), 0),
                 rating: courseRating,
                 progress: courseProgress,
@@ -423,7 +458,9 @@ export const getCourseAnalytics = async (req, res) => {
             success: true,
             analytics: {
                 totalCourses: courses.length,
-                totalStudents,
+                totalEnrollments: totalEnrollments, // ← Total course-student pairs
+                uniqueStudents: uniqueStudents, // ← UNIQUE students
+                totalStudents: uniqueStudents, // ← For backward compatibility
                 totalRevenue,
                 averageRating,
                 avgCompletion,
@@ -434,7 +471,7 @@ export const getCourseAnalytics = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error getting course analytics:', error);
+        console.error('❌ Error getting course analytics:', error);
         res.status(500).json({
             success: false,
             message: error.message,
