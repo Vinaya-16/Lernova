@@ -5,6 +5,7 @@ import Illustration from "./components/Illustration";
 import { courses } from "./mockData/lmsData";
 import heroLearning from "./assets/illustrations/hero-learning.png";
 import heroLearningWebp from "./assets/illustrations/hero-learning.webp";
+import heroBg from "./assets/backgrounds/hero-bg.png";
 
 const NAV_LINKS = ["Home", "Courses", "Contact"];
 
@@ -15,10 +16,15 @@ export default function LMS() {
     return (
         <div className="w-full font-sans bg-app">
             {/* ── HERO ── */}
-            <div className="relative w-full min-h-screen flex flex-col overflow-hidden bg-app">
-                <div className="absolute -bottom-20 -left-16 w-[420px] h-[420px] rounded-full bg-secondary/10 blur-3xl" />
-                <div className="absolute -top-16 left-1/4 w-80 h-80 rounded-full bg-primary/15 blur-3xl" />
-
+           <div
+    className="relative w-full min-h-screen flex flex-col overflow-hidden"
+    style={{
+        backgroundImage: `url(${heroBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+    }}
+>
                 <nav className="relative z-10 w-full px-6 sm:px-16 py-7 flex items-center justify-between">
                     <span className="text-xl font-extrabold bg-primary-gradient bg-clip-text text-transparent">
                         Lernova
