@@ -76,13 +76,7 @@ export default function LMS() {
                         <p className="font-bold text-base mb-0.5 bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">Lernova</p>
                         <p className="text-caption">Making learning accessible to everyone.</p>
                     </div>
-                    <ul className="flex gap-7 list-none m-0 p-0">
-                        {NAV_LINKS.map((l) => (
-                            <li key={l}>
-                                <a href="#" className="text-caption hover:text-secondary transition">{l}</a>
-                            </li>
-                        ))}
-                    </ul>
+                    
                     <p className="text-caption text-gray-500">© 2026 Lernova. All rights reserved.</p>
                 </div>
             </footer>
