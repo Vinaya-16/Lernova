@@ -5,9 +5,14 @@ import {
     CheckCircle2, Clock, ChevronLeft, FileText, StickyNote, Paperclip,
     X, Megaphone, Globe, BarChart3, ChevronRight, Send,
 } from "lucide-react";
+
+import getCurrentStudentId from "../utils/getCurrentStudentId.js";
+import Certificate from "../components/Certificate.jsx";
+import DownloadCertificateButton from "../components/DownloadCertificateButton.jsx";
 import DashboardShell from "../components/DashboardShell";
 import Illustration from "../components/Illustration";
 import { Card, StatCard, Button, Badge, Input, ProgressBar, PageHeader, EmptyState, Avatar } from "../components/ui";
+import { certificateService } from "../services/certificateService.js";
 import studentDashboardImg from "../assets/illustrations/student-dashboard.png";
 import studentDashboardWebp from "../assets/illustrations/student-dashboard.webp";
 import certificatesImg from "../assets/illustrations/certificates.png";
@@ -1300,6 +1305,34 @@ function Quizzes() {
 
 // ── Certificates ──────────────────────────────────────────────────────────
 function Certificates() {
+    const [certificates, setCertificates] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [activeCertificate, setActiveCertificate] = useState(null); // for the preview modal
+    const certificateRef = useRef(null);
+
+    useEffect(() => {
+        const loadCertificates = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const studentId = getCurrentStudentId();
+                if (!studentId) {
+                    setError("Could not determine logged-in student.");
+                    return;
+                }
+                const data = await certificateService.getCertificatesByStudent(studentId);
+                setCertificates(data || []);
+            } catch (err) {
+                console.error(err);
+                setError("Failed to load certificates.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadCertificates();
+    }, []);
+
     return (
         <div className="space-y-6">
             <Card className="bg-primary-gradient text-white flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden">
@@ -1309,22 +1342,71 @@ function Certificates() {
                 </div>
                 <Illustration src={certificatesImg} webp={certificatesWebp} alt="Certificates" size="achievement" animate="scale" framed className="hidden sm:block shrink-0" />
             </Card>
-            {certificates.length === 0 ? (
+
+            {loading && (
+                <p className="text-body text-text-secondary text-center py-12">Loading your certificates...</p>
+            )}
+
+            {!loading && error && (
+                <p className="text-body text-red-500 text-center py-12">{error}</p>
+            )}
+
+            {!loading && !error && certificates.length === 0 && (
                 <div className="flex flex-col items-center text-center py-12">
                     <p className="text-h3 text-text-primary">No certificates yet</p>
                     <p className="text-body text-text-secondary mt-1 max-w-sm">Complete a course to earn your first certificate.</p>
                 </div>
-            ) : (
+            )}
+
+            {!loading && !error && certificates.length > 0 && (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {certificates.map((c) => (
-                        <Card key={c.id} className="text-center hover:-translate-y-1 transition-transform duration-300">
+                        <Card key={c.certificateId} className="text-center hover:-translate-y-1 transition-transform duration-300">
                             <div className="w-14 h-14 rounded-2xl bg-primary-gradient text-white flex items-center justify-center mx-auto mb-4"><Award size={26} /></div>
-                            <p className="text-body-lg text-text-primary">{c.course}</p>
-                            <p className="text-caption text-text-secondary mt-1">Issued {c.issuedOn}</p>
-                            <p className="text-caption text-text-secondary">ID: {c.credentialId}</p>
-                            <Button variant="outline" className="mt-4 h-9 px-4" full>Download</Button>
+                            <p className="text-body-lg text-text-primary">{c.courseName}</p>
+                            <p className="text-caption text-text-secondary mt-1">
+                                Issued {new Date(c.completionDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                            <p className="text-caption text-text-secondary">ID: {c.certificateId}</p>
+                            <Button
+                                variant="outline"
+                                className="mt-4 h-9 px-4"
+                                full
+                                onClick={() => setActiveCertificate(c)}
+                            >
+                                View / Download
+                            </Button>
                         </Card>
                     ))}
+                </div>
+            )}
+
+            {/* Certificate preview + download modal */}
+            {activeCertificate && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    onClick={(e) => e.target === e.currentTarget && setActiveCertificate(null)}
+                >
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-h3 text-text-primary">Your Certificate</h3>
+                            <button onClick={() => setActiveCertificate(null)} className="text-text-secondary hover:text-text-primary">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <Certificate
+                            ref={certificateRef}
+                            studentName={activeCertificate.studentName}
+                            courseName={activeCertificate.courseName}
+                            completionDate={activeCertificate.completionDate}
+                            certificateId={activeCertificate.certificateId}
+                            verificationUrl={activeCertificate.verificationUrl}
+                        />
+                        <DownloadCertificateButton
+                            certificateRef={certificateRef}
+                            fileName={activeCertificate.certificateId}
+                        />
+                    </div>
                 </div>
             )}
         </div>
