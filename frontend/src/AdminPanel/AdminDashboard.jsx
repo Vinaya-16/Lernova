@@ -7,7 +7,6 @@ import {
     ClipboardList,
     Award,
     BarChart3,
-    MessageSquareWarning,
 } from "lucide-react";
 import DashboardShell from "../components/DashboardShell";
 import { PageHeader } from "../components/ui";
@@ -18,7 +17,6 @@ import ManageCourses from "./pages/ManageCourses";
 import EnrollmentReports from "./pages/EnrollmentReports";
 import CertificateManagement from "./pages/CertificateManagement";
 import LearningAnalytics from "./pages/LearningAnalytics";
-import DiscussionModeration from "./pages/DiscussionModeration";
 
 const navItems = [
     { id: "overview", label: "Dashboard Overview", icon: LayoutDashboard },
@@ -28,7 +26,6 @@ const navItems = [
     { id: "enrollments", label: "Enrollment Reports", icon: ClipboardList },
     { id: "certificates", label: "Certificate Management", icon: Award },
     { id: "analytics", label: "Learning Analytics", icon: BarChart3 },
-    { id: "moderation", label: "Discussion Moderation", icon: MessageSquareWarning },
 ];
 
 export default function AdminDashboard() {
@@ -43,7 +40,6 @@ export default function AdminDashboard() {
             case "enrollments": return <EnrollmentReports />;
             case "certificates": return <CertificateManagement />;
             case "analytics": return <LearningAnalytics />;
-            case "moderation": return <DiscussionModeration />;
             default: return <Overview />;
         }
     };
