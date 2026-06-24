@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from "../config/api.js";
 
-const API = "http://localhost:5000/api/discussions";
+const API = `${API_BASE_URL}/discussions`;
 
 const getToken = () => localStorage.getItem("token");
 

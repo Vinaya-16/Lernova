@@ -1,8 +1,9 @@
 // services/studentService.js
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api.js';
 
 // Use the correct base URL
-const API_URL = 'http://localhost:5000/api/students';
+const API_URL = `${API_BASE_URL}/students`;
 
 const getToken = () => localStorage.getItem('token');
 

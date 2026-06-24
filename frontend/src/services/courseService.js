@@ -1,8 +1,9 @@
 // services/courseService.js
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api.js';
 
-// Use full URL for development
-const API_URL = 'http://localhost:5000/api';
+// Use the correct base URL
+const API_URL = API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_URL,
