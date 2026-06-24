@@ -692,7 +692,7 @@ function EnrolledCourses({ enrolledCourses, openCourse, onPlay, loading }) {
 }
 
 // ── Course Player ─────────────────────────────────────────────────────────
-function CoursePlayer({ course, onBack, onProgressUpdate }) {
+function CoursePlayer({ course, onBack, onProgressUpdate, goTo }) {
     const [tab, setTab] = useState("notes");
     const videos = course.videos || [];
     const [completedIds, setCompletedIds] = useState(new Set());
@@ -701,6 +701,8 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
     const [loadedProgress, setLoadedProgress] = useState(false);
     const videoRef = useRef(null);
     const lastUpdateTime = useRef(0);
+    const [certLoading, setCertLoading] = useState(false);
+    const [certError, setCertError] = useState(null);
 
     // Load saved progress when component mounts
     useEffect(() => {
@@ -709,16 +711,16 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                 console.log('📚 Loading progress for course:', course._id);
                 const response = await studentService.getCourseProgress(course._id);
                 console.log('📚 Full progress response:', response);
-                
+
                 if (response.success && response.enrollment) {
                     // Get the completed video IDs as strings
                     const savedCompleted = response.enrollment.completedVideos || [];
                     console.log('📚 Saved completed videos:', savedCompleted);
-                    
+
                     // Create a Set of completed video IDs (as strings for comparison)
                     const completedSet = new Set(savedCompleted.map(id => id.toString()));
                     setCompletedIds(completedSet);
-                    
+
                     console.log('✅ Loaded progress:', completedSet.size, 'videos completed');
                     console.log('✅ Completed video IDs:', Array.from(completedSet));
                 } else {
@@ -738,11 +740,11 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
     // Save progress to backend
     const saveProgress = async (videoId, watchTime, videoDuration, isComplete = false) => {
         if (isUpdating) return;
-        
+
         try {
             setIsUpdating(true);
             console.log('💾 Saving progress for video:', videoId, 'isComplete:', isComplete);
-            
+
             const response = await studentService.updateVideoProgress({
                 courseId: course._id,
                 videoId: videoId,
@@ -750,16 +752,16 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                 videoDuration: videoDuration || 60,
                 isComplete: isComplete
             });
-            
+
             console.log('✅ Progress saved response:', response);
-            
+
             // Update the completedIds set if the video was just completed
             if (response.success && response.completedVideos) {
                 const newCompletedSet = new Set(response.completedVideos);
                 setCompletedIds(newCompletedSet);
                 console.log('🔄 Updated completed IDs:', Array.from(newCompletedSet));
             }
-            
+
             // Notify parent component about progress update
             if (onProgressUpdate) {
                 onProgressUpdate(course._id, progress);
@@ -774,29 +776,29 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
     const handleTimeUpdate = () => {
         const vid = videoRef.current;
         if (!vid || !activeVideo) return;
-        
+
         const currentTime = Math.floor(vid.currentTime);
-        
+
         // Save progress every 5 seconds
         if (currentTime - lastUpdateTime.current >= 5) {
             lastUpdateTime.current = currentTime;
             saveProgress(activeVideo._id, 5, vid.duration || 60);
         }
-        
+
         // Mark as completed when 90% watched
         if (vid.duration && vid.currentTime / vid.duration >= 0.9) {
             const videoIdStr = activeVideo._id.toString();
             if (!completedIds.has(videoIdStr)) {
                 console.log('🎯 Video reached 90%, marking as completed:', activeVideo.title);
                 saveProgress(activeVideo._id, vid.duration, vid.duration, true);
-                
+
                 // Update local state immediately
                 setCompletedIds(prev => {
                     const next = new Set(prev);
                     next.add(videoIdStr);
                     return next;
                 });
-                
+
                 if (onProgressUpdate) onProgressUpdate(course._id, progress);
             }
         }
@@ -804,25 +806,45 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
 
     const handleEnded = () => {
         if (!activeVideo) return;
-        
+
         const videoIdStr = activeVideo._id.toString();
         if (!completedIds.has(videoIdStr)) {
             console.log('🎬 Video ended, marking as completed:', activeVideo.title);
             saveProgress(activeVideo._id, videoRef.current?.duration || 0, videoRef.current?.duration || 60, true);
-            
+
             // Update local state immediately
             setCompletedIds(prev => {
                 const next = new Set(prev);
                 next.add(videoIdStr);
                 return next;
             });
-            
+
             if (onProgressUpdate) onProgressUpdate(course._id, progress);
         }
-        
+
         // Auto-play next video
         const idx = videos.findIndex((v) => v._id === activeVideo._id);
         if (idx < videos.length - 1) setActiveVideo(videos[idx + 1]);
+    };
+
+    // Generate (or fetch existing) certificate once the course is 100% complete
+    const handleGetCertificate = async () => {
+        setCertError(null);
+        setCertLoading(true);
+        try {
+            const studentId = getCurrentStudentId();
+            if (!studentId) {
+                setCertError("Could not determine logged-in student.");
+                return;
+            }
+            await certificateService.generateCertificate({ studentId, courseId: course._id });
+            if (goTo) goTo("certificates");
+        } catch (err) {
+            console.error(err);
+            setCertError(err.response?.data?.message || "Failed to generate certificate.");
+        } finally {
+            setCertLoading(false);
+        }
     };
 
     // Loading state while progress is being loaded
@@ -843,13 +865,13 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                 <div className="lg:col-span-2 space-y-4">
                     <Card className="p-0 overflow-hidden">
                         {activeVideo?.url ? (
-                            <video 
-                                ref={videoRef} 
-                                key={activeVideo._id} 
-                                src={activeVideo.url} 
+                            <video
+                                ref={videoRef}
+                                key={activeVideo._id}
+                                src={activeVideo.url}
                                 controls
                                 className="w-full aspect-video bg-gray-900"
-                                onTimeUpdate={handleTimeUpdate} 
+                                onTimeUpdate={handleTimeUpdate}
                                 onEnded={handleEnded}
                                 onPlay={() => console.log('▶️ Playing:', activeVideo.title)}
                                 onPause={() => console.log('⏸️ Paused:', activeVideo.title)}
@@ -891,6 +913,19 @@ function CoursePlayer({ course, onBack, onProgressUpdate }) {
                     <p className="text-caption text-text-secondary mb-3">{completedIds.size} / {videos.length} watched</p>
                     <ProgressBar value={progress} />
                     <p className="text-caption text-text-secondary mt-1 mb-4">{progress}% complete</p>
+                    {progress === 100 && (
+                        <div className="mb-4">
+                            <Button
+                                variant="primary"
+                                full
+                                onClick={handleGetCertificate}
+                                disabled={certLoading}
+                            >
+                                {certLoading ? "Generating..." : "🎓 Get Certificate"}
+                            </Button>
+                            {certError && <p className="text-xs text-red-500 mt-1">{certError}</p>}
+                        </div>
+                    )}
                     {videos.length === 0 ? <p className="text-caption text-text-secondary">No videos uploaded yet.</p> : (
                         <div className="space-y-1 max-h-96 overflow-y-auto">
                             {videos.map((v) => {
@@ -1846,7 +1881,7 @@ export default function StudentDashboard() {
     });
 
     const renderPage = () => {
-        if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} onProgressUpdate={handleProgressUpdate} />;
+        if (playingCourse) return <CoursePlayer course={playingCourse} onBack={() => setPlayingCourse(null)} onProgressUpdate={handleProgressUpdate} goTo={goTo} />;
         if (selectedCourse) return <CourseDetails course={selectedCourse} onBack={() => setSelectedCourse(null)} onPlay={playCourse} enrolledIds={enrolledIds} onEnrolled={handleEnrolled} />;
         switch (active) {
             case "dashboard":    return <Dashboard goTo={goTo} openCourse={openCourse} enrolledCourses={enrolledCourses} assignments={mergedAssignments} />;

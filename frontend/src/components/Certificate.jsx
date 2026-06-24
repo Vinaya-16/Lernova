@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react"; 
+import React, { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 /**
@@ -71,14 +71,14 @@ const Certificate = forwardRef(
         <div
           style={{
             position: "absolute",
-            left: "31.9%",
-            top: "41%",
-            width: "36.5%",
-            height: "8.8%",
+            left: "30%",
+            top: "39%",
+            width: "40%",
+            height: "11.5%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            overflow: "hidden",
+            overflow: "visible",
             padding: "0 4px",
           }}
         >
@@ -90,10 +90,11 @@ const Certificate = forwardRef(
               textAlign: "center",
               color: "#F3D9A4",
               fontSize: getNameFontSize(studentName),
+              lineHeight: 1.15,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              width: "100%",
+              maxWidth: "100%",
               margin: 0,
             }}
             title={studentName}
@@ -234,5 +235,3 @@ const Certificate = forwardRef(
 Certificate.displayName = "Certificate";
 
 export default Certificate;
-
-
